@@ -1,0 +1,3 @@
+load("/Users/juliab6/Google Drive/julia-mizer-course/data/Landings.RData")
+Landings
+load("/Users/juliab6/Google Drive/julia-mizer-course/data/prydz_inter.RDS")
