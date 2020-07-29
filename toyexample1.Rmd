@@ -1,17 +1,16 @@
 ---
-title: "Toy Example #1: Confronting Size Spectrum Theory with Data"
+title: "Example #1: Calibration Protocal - Time-Averaged"
 author: Julia L. Blanchard
-date: 05/07/2019
-place: Lysekil Training Workshop, Sweden, Sept. 6-9, 2019
+date: July 2020
+place: Hobart, Australia
 output:
   pdf_document: default
   html_document: default
 ---
 
+# Calibrating a multi-species model to time-averaged species' catches
 
-# Introduction
-
-In this section of the workshop we will explore how we can learn about models by fitting size spectrum ecological models to data using the "mizer" R package. Later on, we will use previously "calibrated" model to explore whether forcing the model with time-varying input parameters is enough to capture some of the observed changes through time. 
+In this example we will explore how we can learn about models by fitting size spectrum ecological models to data using the "mizer" R package. 
 
 Recall, there are three different kinds of size spectrum models in mizer, of increasing complexity: 
 1) community model: purely size-based and representative of a single but  "average" species across the whole community 
@@ -19,171 +18,19 @@ Recall, there are three different kinds of size spectrum models in mizer, of inc
 other life-history parameters such as the size at maturity (Hartvig et al. 2011, Andersen & Pedersen, 2010)
 3) multispecies model - which has the same equations and parameters as the trait-based model but is parameterised to represent multiple species in a real system, where each species can have many differing species-specific traits (Blanchard et al. 2014). 
 
-ALthough in practice we are mainly focussed on calibrating multispecies models the same approach can be carried out with the other models. Actually since these are general approaches, they can be used with *any* deterministic mechanistic models. To start with though we will consider confronting the simplest model - the community model - with data on the community size spectrum (What is a size spectrum? See Ken's section!).
+Here we focus on multispecies size spectrum models. In practice, these models have been paramterised in a few different ways depending on data availability for a system or reserach questions.
 
-## Part A - Fitting the community model to time-averaged size spectrum data
+Some studies have focused on  many species-specific values, for example where each species have different values of life-history, size-selective feeding trait parameters (e.g. \beta and \sigma), and details of species interactions (Blanchard et al. 2014, Reum et al. 208) to better capture the dynamics of marine food webs. 
 
-```{r}
-#get required packages
-#documentation here:
-#https://sizespectrum.org/mizer/dev/index.html
-library(mizer)
-library(tidyverse)
-library(ggplot2)
-```
+Others, such as Jacobsen et al. (2014,2016), have represented variation in only a couple of the most important life history parametersfor each species - asymptotic size (which links to other parameters such as maturation size and ) and recruitment parameters (Rmax, eRepro) to broadly capture fished communities or carry out across ecosystem comparisons. 
 
-
-Let's read in some North Sea fish community size spectrum data sampled in 2000. These data are for a *normalised abundance size spectrum* and have been pre-processed to have the same size bins as the example mizer model output.
-
-
-```{r}
-
-#read in fish community size spectrum data for 2000
-css<-read.csv("data/commsizespectrum.csv",header=T)[,-1]
-
-#have a look at plot
-plot(css$logw,css$logden,xlab="log Weight class [g]", ylab=" log Number density")
-
-```
-
-The first question we will pose here is: How do we fit a simple community size spectrum model to community size spectrum data? To answer this we ask: What do the community size spectrum model parameters need to be to best capture observations of the community size spectrum? We will consider only two parameters - the level of fishing effort (here, simply a multiplier of fishing mortality rate) and the background resource carrying capacity which are known to affect the size spectrum.
-
-First let's set up the community size spectrum model and plot it.
-
-```{r}
-params <- set_community_model(knife_edge_size = 10)
-sim <- project(params, effort = 0, t_max = 100, dt=0.1, dx=200)
-plotSpectra(sim)
-
-```
-
-If we were happy with all of the input parameters we could simply compare the modelled size spectrum slopes and intercepts to the observed ones shown above. But instead  we are going to go a bit further  -  starting simple -  and run a range of parameter values, for *effort* and *kappa* to explore how these affect the fit to the data. 
-
-First, we want the model to be able to run over a range of parameters that we pass to it. 
-
-```{r}
-# set up function to run model and output the predicted size spectrum
-
-runmodel<-function(parms){# set up and run!
-params <- set_community_model(knife_edge_size = 10,kappa=parms$kappa)
-sim <- project(params, effort = parms$effort, t_max = 200, dt=0.1)
-# normally we would want to pass updated equilibirum values as initial_n and initial_n_pp here, rather than running from initial values each time, but doesn't matter too much for this example
-# select last 10 years of output (should be time-averaged)
-# slope only
-# output<-mean(getCommunitySlope(sim,min_w=16,max_w=1600)[190:200,1])
-# or whole size spectrum
-output <-apply(sim@n,c(2,3),mean)
-return(output)
-}
-```
-
-We will interrogate the outputs that best "fit" the data. First we need to specify what we mean by our "best fit". We will use simple least squares regression and assess the sum of squared errors (SSE) between the observed and the modelled size spectra. We will select and examine the parameter set with the lowest SSE.
-
-```{r}
-# set up some initial parameters
-parms=data.frame(kappa=0.1,effort=1)
-
-# set up error function to compare predictions with observations (only need range of observations)
-sse <- function(parms,dat) {
-pred <- log(runmodel(parms)[which(params@w  >= 16 & params@w <= 20000)])
-# sum of squared errors, here on log-scale of predictions and data (can change this)
-discrep <- pred - dat
-return(sum(discrep^2))
-}
-err<-sse(parms,css$logden)
-#test
-err
-```
-
-We could skip ahead to  optimisation here to simply find the "best" single parameter values given the model and the data. Instead, to illustrate how this works and to examine the error surface, we will set up a simple grid of parameters. Because the models runs are not actually dependent on each other (they are sequential), we can also do this much more quickly with parallel computing. Have a chat with your neighbour.
-
-```{r}
-f <- function (par,dat=css$logden) {
-parms$kappa <- par[1]
-parms$effort <- par[2]  
-sse(parms,dat)
-}
-# two parameter grid
-kappa <- seq(from=0.05,to=0.1,by=0.05)
-effort <- seq(from=0,to=2,by=0.1)
-grid <- expand.grid(kappa=kappa,effort=effort)
-grid$SSE <- apply(grid,1,f)
-
-
-```
-
-Let's have a look at the error surface and extract the parameter set that gives the minimum error.
-
-```{r}
-# which level of effort has overall least error?
-effort.hat <- grid$effort[which.min(grid$SSE)]
-kappa.hat <- grid$kappa[which.min(grid$SSE)]
-# Basic scatterplot
-ggplot(grid, aes(x=effort, y=SSE,col=kappa) ) +
-  geom_point() 
-
-```
-
-What do these results suggest about the influence of kappa on the effects of fishing? 
-Next plug the effort.hat and kappa.hat values back into the model and plot the modelled and observed size spectra. How do these look compare to the original data?
-
-```{r}
-params <- set_community_model(knife_edge_size = 10,kappa=kappa.hat)
-sim <- project(params, effort = effort.hat, t_max = 100, dt=0.1)
-w <-dimnames(sim@n)$w
-n <-sim@n[100,,]
-plot(w,n,typ="l",xlim=c(16,20000), ylim=c(1e-13,1e1),log="xy")
-#add the data to the plot
-points(exp(css$logw),exp(css$logden), col= "steel blue",cex=0.8,pch=16)
-
-```
-
-The underestimates densities smaller than 5 kg and overestimate densities above 5 kg.
-
-The grid search is computationally very expensive to run for all potential parameters ranges and values, but many optimisation methods exist as a short cut. How do the above minima compare with the estimated parameters from optimisation? Here we can use optim, with some upper and lower bounds on the canditate parameter values. Has the optimisation converged to what you might expect? What happens if you change the error function?
-
-```{r,echo=FALSE}
-# this time carry out optimisation, using optim()
-vals<-optim(par=c(0.1,0.1),f,method ="L-BFGS-B",lower=c(1e-3,0),upper =c(1,3))
-
-#plug these ones back into model and compare
-params <- set_community_model(knife_edge_size = 10,kappa=vals$par[1])
-sim <- project(params, effort = vals$par[2], t_max = 100, dt=0.1)
-w <-dimnames(sim@n)$w
-n <-sim@n[100,,]
-
-#redo the plot
-plot(w,n,typ="l",xlim=c(16,20000), ylim=c(1e-13,1e1),log="xy")
-#add the data to the plot
-points(exp(css$logw),exp(css$logden), col= "steel blue",cex=0.8,pch=16)
-
-
-```
-
-This fit looks better than the previous one.
-
-
-## Questions:
-
-Is it a good enough fit?  What happens if we vary different parameters and/or include more parameters to estimate? Optimisation doesn't always work. Let's go back to the "tips" presentation and we can discuss some alternative options.
-
-
-## Part B - Calibrating a multi-species model to time-averaged species' catches
-
-
-Calibrating multispecies models in mizer builds on the above example. It is also a little more complex because there are several species size spectra and many more model parameters involved.
-
-Some studies focus on detailed many species-specific values, for example where each species have different values of life-history, size-selective feeding trait parameters (e.g. \beta and \sigma), and details of species interactions (Blanchard et al. 2014, Reum et al. 208) to better capture the dynamics of marine food webs. 
-
-Others, such as Jacobsen et al. (2014,2016), have represented variation in only a couple of the most important life history parametersfor each species - asymptotic size (which links to other parameters such as maturation size and ) and recruitment parameters (Rmax, eRepro) to broadly capture fished communities. 
-
-Once you have paramterised the multispecies model for your system, you may find that species do not coexist or the biomass or catches are very different from your observations.
+Once you have paramterised the multispecies model for your system, you may find that species do not coexist or the biomass or catches are very different from your observations. After the model is parameterised and asssessed for basic principles and coexistence (see section x - Gustav?), further calibration to observational data is used to ensure the relative abundance of each species reflects the system, atleast during a stable period, which is time-averaged. 
 
 The background resource parameters and the recruitment parameters, \Rmax (maximum recruitment) and \erepro (reproductive efficiency) greatly affect the biomasses of species in your system. 
 
 The recruitment parameters are highly uncertain and capture density dependent processes in the model that limit the number of offspring that successfully recruit to the smallest size class for each species. In the default mizer package these paramters are used to implement an emergent Beverton-Holt type stock recruitment relationship. 
 
-As a starting point, we will estimate these parameters as a means of fitting the modelled species catches to the observed catches. This could similarly be carried out with biomasses. Other model detailed approaches also exist, see my presentation, but this approach has been used to get models in the right "ball-park".
+As a starting point, we will estimate these parameters as a means of fitting the modelled species catches to the observed catches. This could similarly be carried out with biomasses. Other model detailed approaches also exist, see the main paper, but this approach has been used to get models in the right "ball-park", which can them be further evaluated using diagnostics (example X) and fitted to time series data (example XX).
 
 
 ### A Simple Protocol for Multispecies Model Calibration
@@ -191,17 +38,17 @@ As a starting point, we will estimate these parameters as a means of fitting the
 We will adapt the "recipe" for calibration in Jacobsen et al 2014 (see supp. mat.) and Blanchard et al (2014), into the following steps:
 
 
-0. Run the model with the chosen species-specific parameters. This will relate some of the missing paramsters to \Winf. \Rmax will also be automatically calculated based on equilbrium assumptions (Andersen et al. 2016).
+0. Run the model with the chosen species-specific parameters. This will relate some of the missing parameters to \Winf ( h and gamma - explain through simple example of how the model works?). \Rmax (see example that explains Rmax?) could also be automatically calculated based on equilbrium assumptions (Andersen et al. 2016) but by default it is "Inf", which means there is no density dependence asscoaited with spawner-recruit dynamics.
 
 1. Obtain the time-averaged data (e.g. catches or biomasses for each species) and the time-averaged fishing mortalty inputs (e.g. from stock assessments). Typically this should be over a stable part of the time series for your system.
 
-2. Calibrate the carrying capacity of the background resource spectrum, \kappa, by minimising the error between the modelled and observed  abundance, biomass or catches. Typically this is for each species but below we will do this using the empirical community size spectrum, as in the above example.
+2. Start with the chosen parameters for kappa and lambda of the resource spectrum that are obtained from the literature regarding the community size spectrum. These can be very uncertain and sometimes are not available. Calibrate the carrying capacity of the background resource spectrum, \kappa, by examining the feeding level, biomass through time, and overall size spectrum. 
 
 3. Calibrate the maximum recruitment, \Rmax, which will affect the relative biomass of each species (and, combined with the fishing parameters, the catches) by minimising the error between observed and estimated catches (again or biomasses).
 
-4. Check that the physiological recruitment, \RDI, is much higher than the realised recruitment, \RDD. This can be done using the getRDD and getRDI functions and calculating the ratio which should be around 100  for a specis with \Winf = 1500 g, but varies with asymptotic size and fishing mortality (Andersen 2019). High RDI/RDD ratio indicates the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. If RDI/RDD is too high, the efficiency of reproduction (erepro) can be lowered to ensure species do not outcompete others or or over-resilient to fishing. Lowering erepro biologically means higher egg mortality rate or wasteful energy invested into gonads. If RDI/RDD = 1 the species is in the linear part of the stock recruitment relationship (no spawner-recruit density dependence).
+4. Check that the physiological recruitment, \RDI, is much higher than the realised recruitment, \RDD. This can be done using the getRDD and getRDI functions and calculating the ratio which should be around 100  for a species with \Winf = 1500 g, but varies with asymptotic size and fishing mortality (Andersen 2019). High RDI/RDD ratio indicates the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. If RDI/RDD is too high, the efficiency of reproduction (erepro) can be lowered to ensure species do not outcompete others or or over-resilient to fishing. Lowering erepro biologically means higher egg mortality rate or wasteful energy invested into gonads. If RDI/RDD = 1 the species is in the linear part of the stock recruitment relationship (no spawner-recruit density dependence).
 
-5. Verify the model after the above step by comparing the model with: species biomass or abundance distrubtions, feeding level, naturality mortality, growth, vulnerablity to fishing (fmsy) and catch, diet composition. Many handy functions for plotting these are available here: https://sizespectrum.org/mizer/reference/index.html
+5. Verify the model after the above step by comparing the model with: species biomass or abundance distrubutions, feeding level, naturality mortality, growth, vulnerablity to fishing (fmsy) and catch, diet composition. Many handy functions for plotting these are available here: https://sizespectrum.org/mizer/reference/index.html
 
 6. The final verification step is to force the model with time-varying fishing mortality to assess whether changes in time series in biomassess and catches capture observed trends. The model will not cpature all of the fluctuations from environmental processes (unless some of these are included), but should match the magnitude and general trend in the data.
 
@@ -272,9 +119,9 @@ plot(sim)
 
 Species are coexisting. This is in part because we applied a stronger  Rmax effect for larger species. You can play with the above parameters but but it would take a lot of trial an error to achieve the right combination to get the biomass or catches similar to the observations.
 
-#### Step 2. Calibrate the carrying capacity of the background resource spectrum, \kappa, by minimising the error between the modelled and observed  abundance, biomass or catches. 
+#### Step 2. Calibrate the carrying capacity of the background resource spectrum, \kappa at steady state 
 
-We could explore the effects further using Rshiny app, where we also have a plot of the biomass or catch data. First lets' look at the basic diagnostics and tune kappa and erepro to make sure the feeding levels are high enough for each species. 
+We could explore the effects further using Rshiny app, where we also have a plot of the biomass or catch data. First let's look at the basic diagnostics and tune kappa and erepro to make sure the feeding levels are high enough for each species and that biomasses coexist. 
 
 ```{r}
 library(shiny)
@@ -346,7 +193,6 @@ err
 vals<-optim(par=vary,getError,params=initparams,method ="L-BFGS-B",lower=c(rep(3,12)),upper= c(rep(20,12)))
 
 
-
 # plug back into model
 # make sure kappa and erepro are the same
 params@species_params$erepro[] <-1e-2
@@ -358,7 +204,7 @@ params<-setParams(params)
 sim <- project(params, effort = 1, t_max = 500, dt=0.1)
 plot(sim)
 
-# and without fishing?
+# and check do species still coexist without fishing?
 sim_uf <- project(params, effort = 0, t_max = 500, dt=0.1)
 plot(sim_uf)
 
@@ -372,14 +218,14 @@ saveRDS(sim,"optim_sim.RDS")
 
 ```
 
-#### Step 4. Check that the physiological recruitment, \RDI, is much higher than the realised recruitment, \RDD. High RDI/RDD ratio.
+#### Step 4. Check the level ofdesnity dependence. Is the physiological recruitment, \RDI, much higher than the realised recruitment, \RDD. High RDI/RDD ratio indicates strong density dependence.
 
 ```{r}
-#params<- readRDS("optim_param.RDS")
-#sim <- readRDS("optim_sim.RDS")
+ # params<- readRDS("optim_param.RDS")
+ # sim <- readRDS("optim_sim.RDS")
 getRDI(params)/getRDD(params)
 
-# seems like the right ballpark according to protocal
+# seems like there is little density dependence 
 
 # # if needed change erepro & plug back into model
 # params@species_params$erepro[] <-1e-3
@@ -397,8 +243,8 @@ Eg. species biomass or abundance distrubtions, feeding level, naturality mortali
 
 ```{r}
 
+## check obs vs. predicted yield
 
-## but really not a very good fit to the data !!! model underestimates yield for some species
 pred_yield <-melt(getYield(sim)[100,]/1e6)
 pred_yield$obs <- cdat$Catch_8595
 pred_yield$species <-row.names(pred_yield)
@@ -418,14 +264,17 @@ p
 
 plotlyGrowthCurves(sim,percentage = T) 
 plotlyFeedingLevel(sim) 
-plotGrowthCurves(sim,"Cod") # check each species - growth way too low for cod, not sure if these kvb params are correct/or should not be used in this way
+plotGrowthCurves(sim,"Cod") # check each species - not sure if these kvb params are correct/or should not be used in this way (the ones I initially used were maximal values) - ideally we would have data here as growth is actually highly variable.
+
 plotlySpectra(sim,power=2)
 plotDiet(params,"Cod") ## Maybe feeding too much on background resource, although here note that is "other food" too, such as benthos.
-# What would happen if changed the interactiion matrix or beta and sigma?
+
+
+# What would happen if we also parameterised the interaction matrix or beta and sigma?
 
 
 ```
 
-#### Step 6. The final verification step is to force the model with time-varying fishing mortality to assess whether changes in time series in biomassess and catches capture observed trends. The model will not cpature all of the fluctuations from environmental processes ( unless some of these are included), but should match the magnitude and general trend in the data.
+#### Step 6. The final verification step is to force the model with time-varying fishing mortality to assess whether changes in time series in biomassess and catches capture observed trends. The model will not capture all of the fluctuations from environmental processes ( unless some of these are included), but should match the magnitude and general trend in the data. We explore this in Example # 2 - Changes through time.
 
-Exhausted? Let's Break! We will then go back to the "tips" and pick up Step 6 in toyexample3.
+

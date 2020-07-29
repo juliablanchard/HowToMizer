@@ -1,21 +1,22 @@
 ---
-title: "Toy Example #2: Modelling changes through time"
+title: "Example #2: Modelling Changes Through Time"
 author: Julia L. Blanchard
-date: 05/07/2019
-place: Lysekil Training Workshop, Sweden, Sept. 6-9, 2019
+date: July 2020
+place: Hobart, Australia
 output:
   pdf_document: default
   html_document: default
-  runtime: shiny
 ---
 
 # Introduction 
 
 There are many emerging size spectrum modelling (including mizer) applications that aim to examine changes in time series through time. Depending on your question and the goals you have in mind for your model, it may even be worth fitting models to time series data. We may wish to discuss this later. A first step in exploration of ecosystem models with time series however, often starts by simply varying input or "forcing" parameters through time. 
 
-Here, we begin with the steady state or equilibrium model that has already been calibrated and evaluated. Presumably these get the model in the correct ball-park for each species time-average biomass, abundance, catches, growth etc. We then examine how different variables can "force"" the model away from the equilibrium state. Often a goal is being asked whether the forcing alone is enough to capture the trends in time series - e.g. fishing mortality, phytoplankton abundance, temperature  include examples that have been published.
+Here, we begin with the steady state or equilibrium model that has already been calibrated and evaluated. 
 
-Aims of this practical: 
+Presumably these get the model in the correct ball-park for each species time-average biomass, abundance, catches, growth etc. We then examine how different variables can "force"" the model away from the equilibrium state. Often a goal is being asked whether the forcing alone is enough to capture the trends in time series - e.g. fishing mortality, phytoplankton abundance, temperature  include examples that have been published.
+
+Aims of this practical example: 
 1) Learn the main steps involved in forcing a size spectrum model
 2) Visually compare some of the model predictions with time-series data 
 3) Explore how post-hoc parameter changes can affect model skill through time
@@ -59,7 +60,7 @@ If we agree the model has reached an equilibrium, we can take these equilibrium 
 
 ```{r}
 
-# note we have sigmoidal trawl slectivity parameters, but we need to set up a gearfor each species to force each species separately
+# note we have sigmoidal trawl slectivity parameters, but we need to set up a gear for each species to force each species separately
 
 # to do this, we need to rebuild the params object 
 inter <- sim@params@interaction
@@ -156,9 +157,9 @@ ggplot(y) + geom_line(data=y, aes(x = time, y = (value)/1e6,
 
 ```
 
-The trends look kind of OK for some but really not for others.  Remeber we re-calibrated this model with completely different assumptions than the before. 
+The trends look kind of OK for some but really not for others.  Remember we re-calibrated this model with completely different assumptions than the before. 
 
-Are the fits in line with our goals for model? They to pass through the cloud of points for some... Let's have a closer look at a particular species and use the less forgiving linear scale.
+Are the fits in line with our goals for model? They to pass through the cloud of points for some...but not all. Let's have a closer look at a particular species and make sure we use the (less forgiving) linear scale.
 
 ```{r}
 # look only at  Sprat and examine on linear 
