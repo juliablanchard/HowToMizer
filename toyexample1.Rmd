@@ -58,6 +58,18 @@ We will adapt the "recipe" for calibration in Jacobsen et al 2014 (see supp. mat
 Let's read in the North Sea model parameters, stored in mizer.
 
 ```{r}
+# Initial set up
+
+# only need to do the installations once.
+#install.packages("remotes")
+library(remotes)
+#remotes::install_github("sizespectrum/mizerExperimental")
+library(mizerExperimental)
+
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+
 # Let's use the North Sea model parameters, but change the parameters and assumptions so that it's essentially a different uncalibrated model, where species are not coexisting
 
 sparams <- read.csv("data/nsparams.csv")[,-1]
@@ -110,10 +122,16 @@ params@species_params$R_max <- params@resource_params$kappa*params@species_param
 params@species_params$erepro[]<- 1e-3
 
 params <- setParams(params)
-# run without fishing
+# run with fishing
 sim <- project(params, t_max = 100, effort =1)
-
 plot(sim)
+
+
+## compare with Gustav's projectToSteady
+steadyparams <- projectToSteady(params, t_max = 100, return_sim = F)
+sim2 <- project(steadyparams, t_max = 100, effort =1)
+plot(sim2)
+plotSpectra(sim2,power=2,total = T)
 
 ```
 
@@ -124,6 +142,8 @@ Species are coexisting. This is in part because we applied a stronger  Rmax effe
 We could explore the effects further using Rshiny app, where we also have a plot of the biomass or catch data. First let's look at the basic diagnostics and tune kappa and erepro to make sure the feeding levels are high enough for each species and that biomasses coexist. 
 
 ```{r}
+# Optional
+# adjust Rmax and/or reproductive efficiency to examine whether improved steady state is achievable that way
 library(shiny)
 runApp("shiny-equilibrium")
 # is there a way to save the final chosen values?
@@ -141,28 +161,58 @@ Let's choose some values that enable the most species to coexist as a starting p
 This might take AWHILE. Go watch some Netflix.
 
 ```{r}
-# change kappa and erepro based on shiny epxloration
-  params@species_params$erepro[] <-1e-2
-  params <- setParams(params,kappa=10^11.5)
+# # change kappa and erepro based on shiny exploration, set up initial values based on "close to" equilibrium values from above sim
+#   steadyparams@species_params$erepro[] <-1e-0
+#   params@initial_effort<-1
+#   params@initial_n<-sim@n[100,,]
+#   params@initial_n_pp<-sim@n_pp[100,]
+#   params <- setParams(params,kappa=10^(11))
 
 # define the initial parameters to send to optimisation code below
 
 # we need 12 Rmaxs, log10 scale
-vary <- log10(1000*params@resource_params$kappa*params@species_params$w_inf^-1)
+vary <- log10(steadyparams@species_params$R_max)
 #vary<-runif(10,3,12) # or use completley made up values, same for each species test for effects of initial values
 
-#the following getError function combines the steps of the optimisastion above - this time with the multispecies model and output the predicted size spectrum
+## set up the enviornment to keep the current state of the simulations 
+state <- new.env(parent = emptyenv())
+state$params <-  steadyparams
 
-getError <- function(vary,params=initparam,dat=cdat$Catch_8595_tonnes,data_type="catch",timetorun=100) {
+## the following getError function combines the steps of the optimisastion above - this time with the multispecies model and output the predicted size spectrum
+
+## update below with project_steady and saving the state from each iteration
+
+getError <- function(vary,params=params,dat=cdat$Catch_8595_tonnes,data_type="catch", tol = 0.1,timetorun=1) {
+  
+  #env$params@species_params$R_max[]<-10^vary[1:9]
   params@species_params$R_max[]<-10^vary[1:12]
-  sim <- project(params, effort = 1, t_max = timetorun, dt=0.1)
+  
+  params <- setParams(params)
+  # run to steady state and update params
+  # env$params<- projectToSteady(env$params, distance_func = distanceSSLogN,
+  #                 tol = tol, t_max = 200,return_sim = F)
+  params<- projectToSteady(params, distance_func = distanceSSLogN,
+                   tol = tol, t_max = 200,return_sim = F)
+ 
+  # create sim object 
+   
+  sim <- project(params, effort = 1, t_max = timetorun) #Change t_max to determine how many years the model runs for
+  
+  # 
+  # sim <- project(env$params, effort = 1, t_max = timetorun) #Change t_max to determine how many years the model runs for
+  # 
+  # env$params <-sim@params
+  # 
+  
           ## what kind of data and output do we have?
           if (data_type=="SSB") {
-          output <-getSSB(sim)[timetorun,]   #could change to getBiomass if appropriate, also check units.
+          output <-getSSB(sim)[timetorun,]   #could change to getBiomass if using survey, also check units.
           }
+  
           if (data_type=="catch") {
          output <-getYield(sim)[timetorun,]/1e6 #### CHECK UNITS !! grams per year? the data are in tonnes per year so converting to tonnes.
           }
+  
   pred <- log(output)
   dat  <- log(dat)
 
@@ -172,7 +222,7 @@ getError <- function(vary,params=initparam,dat=cdat$Catch_8595_tonnes,data_type=
    discrep <- (sum(discrep^2))
   
   # can use a strong penalty on the error to ensure we reach a minimum of 10% of the data (biomass or catch) for each species
- #  if(any(pred < 0.1*dat)) discrep <- discrep + 1e10
+  # if(any(pred < 0.1*dat)) discrep <- discrep + 1e10
   
     return(discrep)
 
@@ -180,25 +230,52 @@ getError <- function(vary,params=initparam,dat=cdat$Catch_8595_tonnes,data_type=
 
 ## test it
 
-initparams <- params
 
-err<-getError(vary,params,dat=cdat$Catch_8595_tonnes,data_type="catch")
-#err<-getError(vary,params,dat=rep(100,12),data_type="biomass")
-#test
-err
-
+# err<-getError(vary,params)
+# #err<-getError(vary,params,dat=rep(100,12),data_type="biomass")
+# #test
+# err
 
 
-# this time carry out optimisation, using optim(), with catches
-vals<-optim(par=vary,getError,params=initparams,method ="L-BFGS-B",lower=c(rep(3,12)),upper= c(rep(20,12)))
+# this time carry out optimisation, using optim(), with catches - already saved
+# vals<-optim(par=vary,getError,params=params,method ="L-BFGS-B",lower=c(rep(3,12)),upper= c(rep(20,12)))
+# save params - may want to repeat this setp depending on diagnostics, after changing some parameters
+# saveRDS(params,"optimx_param.RDS")
+# saveRDS(sim,"optimx_sim.RDS")
 
+
+# # above seems to give very different estimates every time (not sure if issues is how I am using the state, projectToSetady, or optim)
+# # could also try derivative free method, for non-smaooth surfaces:
+# # install.packages("dfoptim")
+# library(dfoptim)
+
+# vals<-nmkb(par=vary,fn=getError,params=steadyparams,lower=c(rep(1,12)),upper= c(rep(20,12)),tol=0.1)
+# 
+
+# comparsion of optimistaion methods, non-gradient method
+library(optimx)
+
+vals<-optimx(par=vary,getError,params=params,timetorun=1,lower=c(rep(3,12)),upper= c(rep(20,12)), method = c("L-BFGS-B"),
+control = list(trace = 6, follow.on=TRUE, maximize=FALSE))
+
+# save vals - may want to repeat this setp depending on diagnostics, after changing some parameters
+saveRDS(vals,"optimx_vals.RDS")
+
+vals2<-optimx(par=as.numeric(vals[1:12]),getError,params=params,lower=c(rep(3,12)),upper= c(rep(20,12)), method = c("L-BFGS-B"),
+control = list(trace = 6, follow.on=TRUE, maximize=FALSE))
+
+#vals2<-optim(par=as.numeric(vals[1:12]),getError,params=params,method ="L-BFGS-B",lower=c(rep(3,12)),upper= c(rep(20,12)))
+
+# save vals2 - may want to repeat this setp depending on diagnostics, after changing some parameters
+saveRDS(vals2,"optimx_vals2.RDS")
+
+#could repeat above to improve the fit using these values as the starting point
+
+#try different fitting data?: could also try comparing with Alida's Biomass estimates?
 
 # plug back into model
-# make sure kappa and erepro are the same
-params@species_params$erepro[] <-1e-2
-params <- setParams(params,kappa=10^11.5)
-# optim values:
-params@species_params$R_max <- 10^vals$par[1:12] 
+# optimx values:
+params@species_params$R_max<- 10^as.numeric(vals2[1:12])
 # set the param object
 params<-setParams(params)
 sim <- project(params, effort = 1, t_max = 500, dt=0.1)
@@ -208,12 +285,10 @@ plot(sim)
 sim_uf <- project(params, effort = 0, t_max = 500, dt=0.1)
 plot(sim_uf)
 
-# save vals - may want to repeat this setp depending on diagnostics, after changing some parameters
-saveRDS(vals,"optim_vals.RDS")
 
 # save params - may want to repeat this setp depending on diagnostics, after changing some parameters
-saveRDS(params,"optim_param.RDS")
-saveRDS(sim,"optim_sim.RDS")
+saveRDS(params,"optimx2_param.RDS")
+saveRDS(sim,"optimx2_sim.RDS")
 
 
 ```
@@ -221,17 +296,18 @@ saveRDS(sim,"optim_sim.RDS")
 #### Step 4. Check the level ofdesnity dependence. Is the physiological recruitment, \RDI, much higher than the realised recruitment, \RDD. High RDI/RDD ratio indicates strong density dependence.
 
 ```{r}
- # params<- readRDS("optim_param.RDS")
- # sim <- readRDS("optim_sim.RDS")
+  # params<- readRDS("optim_param.RDS")
+  # sim <- readRDS("optim_sim.RDS")
+
 getRDI(params)/getRDD(params)
 
 # seems like there is little density dependence 
 
 # # if needed change erepro & plug back into model
-# params@species_params$erepro[] <-1e-3
-# params <- setParams(params)
-# sim <- project(params, effort = 1, t_max = 500, dt=0.1)
-# plot(sim)
+ # params@species_params$erepro[] <-1e-3
+ # params <- setParams(params)
+ # sim <- project(params, effort = 1, t_max = 500, dt=0.1)
+ # plot(sim)
 
 ```
 
@@ -259,15 +335,15 @@ p <- ggplot() + # plot predicted and observed yields
  # scale_fill_manual(values = wes_palette(12, "Zissou")) 
 p
  
- 
+
 # check other plots
 
 plotlyGrowthCurves(sim,percentage = T) 
 plotlyFeedingLevel(sim) 
 plotGrowthCurves(sim,"Cod") # check each species - not sure if these kvb params are correct/or should not be used in this way (the ones I initially used were maximal values) - ideally we would have data here as growth is actually highly variable.
 
-plotlySpectra(sim,power=2)
-plotDiet(params,"Cod") ## Maybe feeding too much on background resource, although here note that is "other food" too, such as benthos.
+plotlySpectra(sim,power=2,total = T)
+plotDiet(params,"Cod") ## perhaps feeding too much on background resource, although here note that is "other food" too, such as benthos.
 
 
 # What would happen if we also parameterised the interaction matrix or beta and sigma?
