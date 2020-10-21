@@ -75,8 +75,19 @@ Saithe_sumtab <- getSummaryTable(c(13511))
 
 
 
+############ Need to use the data above and create new versions of the following matrices (rows: year, cols: species):
 
+# Extract "F" column and create time series of fishing mortalty rates: fmat.csv
+# Extract "catches" column and create time series of total catches (including discards)
+# Extract "SSB" column and create time series of SSB
 
+#Then create time averaged files for across 1985-95 (1 value for each species) to update: 
+#nseaparams.csv , "catachabliity column" - here puttinhg in the time-averaged F as a baseline reference value
+#time-averaged-catches.csv 
+#time-averaged-SSB.csv
+
+#### Then apply these new files to the toyexample1.R (time-averaged calibration) and toyexample2.R (time-series evaluation/exploration)
+#### Then apply these using Mike's code to do time-series fitting.
 
 
 
