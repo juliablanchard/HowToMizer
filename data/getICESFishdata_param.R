@@ -9,9 +9,14 @@
 
 # get most recent ICES stock assessment summary outputs for North Sea model species
 
-install.packages("icesSAG")
+# install.packages("icesSAG") # archived
+# library(devtools)
+# install_version("icesVocab","1.1.8")
+# install_version("icesSAG","1.3-6")
+
 library(icesSAG)
-?icesSAG
+library(tidyverse)
+# ?icesSAG
 
 
 ### get summary data for each species by assessmentkey:
@@ -77,14 +82,212 @@ Saithe_sumtab <- getSummaryTable(c(13511))
 
 ############ Need to use the data above and create new versions of the following matrices (rows: year, cols: species):
 
+SpIdx <- c("Sprat","Sandeel","N.pout","Herring","Dab","Whiting","Sole","Gurnard","Plaice","Haddock","Cod","Saithe")
+# dataIdx <- c("Sprat","Sandeel","N.pout","Herring","Dab","Whiting","Sole","Gurnard","Plaice","Haddock","Cod","Saithe")
+
+# Which data set is the longest?
+dim_sum <- NULL
+for(iSpecies in SpIdx)
+{
+switch (iSpecies,
+        Sprat = {myVar = Sprat_sumtab[[1]]},
+        Sandeel = {myVar = Sandeel_sumtab[[1]]},
+        N.pout = {myVar = N.pout_sumtab[[1]]},
+        Herring = {myVar = Herring_sumtab[[1]]},
+        Dab = {myVar = Dab_sumtab[[1]]},
+        Whiting = {myVar = Whiting_sumtab[[1]]},
+        Sole = {myVar = Sole_sumtab[[1]]},
+        Gurnard = {myVar = Gurnard_sumtab[[1]]},
+        Plaice = {myVar = Plaice_sumtab[[1]]},
+        Haddock = {myVar = Haddock_sumtab[[1]]},
+        Cod = {myVar = Cod_sumtab[[1]]},
+        Saithe = {myVar = Saithe_sumtab[[1]]},
+        {}
+)
+dim_sum <- c(dim_sum,dim(myVar)[1])    
+print(max(dim_sum)) 
+}
+# Herring it is
+timePeriod <- Herring_sumtab[[1]]$Year
+
 # Extract "F" column and create time series of fishing mortalty rates: fmat.csv
-# Extract "catches" column and create time series of total catches (including discards)
+
+fmat <- matrix(NA,nrow = length(timePeriod), ncol = length(SpIdx), dimnames = list("year" = timePeriod, "species" = SpIdx))
+
+for(iSpecies in SpIdx)
+{
+switch (iSpecies,
+    Sprat = {myVar = Sprat_sumtab[[1]]$F},
+    Sandeel = {
+        myMat <- matrix(NA, nrow = dim(Sandeel_sumtab[[1]])[1], ncol = 4)
+        mySSB <- matrix(NA, nrow = dim(Sandeel_sumtab[[1]])[1], ncol = 4)
+        
+        for(icol in 1:4)
+        {
+            tempF <- Sandeel_sumtab[[icol]]$F*Sandeel_sumtab[[icol]]$SSB
+            while(length(tempF)<dim(Sandeel_sumtab[[1]])[1]) tempF <- c(NA,tempF)
+            myMat[,icol] <- tempF 
+            
+            tempSSB <- Sandeel_sumtab[[icol]]$SSB
+            while(length(tempSSB)<dim(Sandeel_sumtab[[1]])[1]) tempSSB <- c(NA,tempSSB)
+            mySSB[,icol] <- tempSSB
+            
+        }
+        ssbSum <- apply(mySSB,1,sum,na.rm=T)
+        myVar <- apply(myMat,1,mean,na.rm=T)/ssbSum
+        myVar[is.nan(myVar)] <- NA # in case there was a mean of NAs only, keeping the NA in place
+        },
+    N.pout = {myVar = N.pout_sumtab[[1]]$F},
+    Herring = {myVar = Herring_sumtab[[1]]$F},
+    Dab = {myVar = Dab_sumtab[[1]]$F},
+    Whiting = {myVar = Whiting_sumtab[[1]]$F},
+    Sole = {myVar = Sole_sumtab[[1]]$F},
+    Gurnard = {myVar = Gurnard_sumtab[[1]]$F},
+    Plaice = {myVar = Plaice_sumtab[[1]]$F},
+    Haddock = {myVar = Haddock_sumtab[[1]]$F},
+    Cod = {
+      myMat <- matrix(NA, nrow = dim(Cod_sumtab[[1]])[1], ncol = 2)
+      mySSB <- matrix(NA, nrow = dim(Cod_sumtab[[1]])[1], ncol = 2)
+      
+      for(icol in 1:2)
+      {
+        tempF <- Cod_sumtab[[icol]]$F*Cod_sumtab[[icol]]$SSB
+        while(length(tempF)<dim(Cod_sumtab[[1]])[1]) tempF <- c(NA,tempF)
+        myMat[,icol] <- tempF 
+        
+        tempSSB <- Cod_sumtab[[icol]]$SSB
+        while(length(tempSSB)<dim(Cod_sumtab[[1]])[1]) tempSSB <- c(NA,tempSSB)
+        mySSB[,icol] <- tempSSB
+        
+      }
+      ssbSum <- apply(mySSB,1,sum,na.rm=T)
+      myVar <- apply(myMat,1,mean,na.rm=T)/ssbSum
+      myVar[is.nan(myVar)] <- NA # in case there was a mean of NAs only, keeping the NA in place
+    },
+    Saithe = {myVar = Saithe_sumtab[[1]]$F},
+    {}
+)
+    while (length(myVar)<length(timePeriod)) myVar <- c(NA,myVar)
+  fmat[,iSpecies] <- myVar  
+}
+write.csv(fmat, file = "data/fmatWeighted.csv")
+
+#nseaparams.csv , "catachabliity column" - here puttinhg in the time-averaged F as a baseline reference value
+
+fAvg <- fmat[which(rownames(fmat) == "1985"):which(rownames(fmat) == "1995"),]
+fAvg <- apply(fAvg,2,mean,na.rm=T)
+fAvg[is.nan(fAvg)] <- NA
+
+nsparams <- readr::read_csv("data/old/nsparams.csv")
+nsparams$catchability <- fAvg
+write.csv(nsparams, file = "data/nsparams.csv")
+# Extract "catches" column and create time series of total catches (including discards) | RF catches column is already total catches
+
+catchesMat <- matrix(NA,nrow = length(timePeriod), ncol = length(SpIdx), dimnames = list("year" = timePeriod, "species" = SpIdx))
+
+for(iSpecies in SpIdx)
+{
+    switch (iSpecies,
+            Sprat = {myVar = Sprat_sumtab[[1]]$catches},
+            Sandeel = {
+                myMat <- matrix(NA, nrow = dim(Sandeel_sumtab[[1]])[1], ncol = 4)
+                for(icol in 1:4)
+                {
+                    tempF <- Sandeel_sumtab[[icol]]$catches
+                    while(length(tempF)<dim(Sandeel_sumtab[[1]])[1]) tempF <- c(NA,tempF)
+                    myMat[,icol] <- tempF 
+                }
+                myVar <- apply(myMat,1,sum,na.rm=T)
+                myVar[which(myVar == 0)] <- NA # summing NA will do this, keeping the NA in place
+            },
+            N.pout = {myVar = N.pout_sumtab[[1]]$landings}, # N.pout does not have catches data, just landings (and no discards)
+            Herring = {myVar = Herring_sumtab[[1]]$catches},
+            Dab = {myVar = Dab_sumtab[[1]]$catches},
+            Whiting = {myVar = Whiting_sumtab[[1]]$catches},
+            Sole = {myVar = Sole_sumtab[[1]]$catches},
+            Gurnard = {myVar = Gurnard_sumtab[[1]]$catches},
+            Plaice = {myVar = Plaice_sumtab[[1]]$catches},
+            Haddock = {myVar = Haddock_sumtab[[1]]$catches},
+            Cod = {
+                myMat <- matrix(NA, nrow = dim(Cod_sumtab[[1]])[1], ncol = 2)
+                for(icol in 1:2)
+                {
+                    tempF <- Cod_sumtab[[icol]]$catches
+                    while(length(tempF)<dim(Cod_sumtab[[1]])[1]) tempF <- c(NA,tempF)
+                    myMat[,icol] <- tempF 
+                }
+                myVar <- apply(myMat,1,sum,na.rm=T)
+                myVar[which(myVar == 0)] <- NA # summing NA will do this, keeping the NA in place
+            },
+            Saithe = {myVar = Saithe_sumtab[[1]]$catches},
+            {}
+    )
+    while (length(myVar)<length(timePeriod)) myVar <- c(NA,myVar)
+    catchesMat[,iSpecies] <- myVar  
+}
+write.csv(catchesMat, file = "data/catchesMat.csv")
+#time-averaged-catches.csv
+# averaged subset
+catchAvg <- catchesMat[which(rownames(catchesMat) == "1985"):which(rownames(catchesMat) == "1995"),]
+catchAvg <- apply(catchAvg,2,mean,na.rm=T)
+catchAvg[is.nan(catchAvg)] <- NA
+catchAvg <- data.frame("species" = SpIdx, "Catch_8595_tonnes" = catchAvg,row.names = NULL)
+write.csv(catchAvg, file = "data/time-averaged-catches.csv",row.names = F)
+
 # Extract "SSB" column and create time series of SSB
 
-#Then create time averaged files for across 1985-95 (1 value for each species) to update: 
-#nseaparams.csv , "catachabliity column" - here puttinhg in the time-averaged F as a baseline reference value
-#time-averaged-catches.csv 
+SSBmat <- matrix(NA,nrow = length(timePeriod), ncol = length(SpIdx), dimnames = list("year" = timePeriod, "species" = SpIdx))
+
+for(iSpecies in SpIdx)
+{
+    switch (iSpecies,
+            Sprat = {myVar = Sprat_sumtab[[1]]$SSB},
+            Sandeel = {
+                myMat <- matrix(NA, nrow = dim(Sandeel_sumtab[[1]])[1], ncol = 4)
+                for(icol in 1:4)
+                {
+                    tempF <- Sandeel_sumtab[[icol]]$SSB
+                    while(length(tempF)<dim(Sandeel_sumtab[[1]])[1]) tempF <- c(NA,tempF)
+                    myMat[,icol] <- tempF 
+                }
+                myVar <- apply(myMat,1,sum,na.rm=T)
+                myVar[which(myVar == 0)] <- NA # summing NA will do this, keeping the NA in place
+            },
+            N.pout = {myVar = N.pout_sumtab[[1]]$landings}, # N.pout does not have catches data, just landings (and no discards)
+            Herring = {myVar = Herring_sumtab[[1]]$SSB},
+            Dab = {myVar = Dab_sumtab[[1]]$SSB},
+            Whiting = {myVar = Whiting_sumtab[[1]]$SSB},
+            Sole = {myVar = Sole_sumtab[[1]]$SSB},
+            Gurnard = {myVar = Gurnard_sumtab[[1]]$SSB},
+            Plaice = {myVar = Plaice_sumtab[[1]]$SSB},
+            Haddock = {myVar = Haddock_sumtab[[1]]$SSB},
+            Cod = {
+                myMat <- matrix(NA, nrow = dim(Cod_sumtab[[1]])[1], ncol = 2)
+                for(icol in 1:2)
+                {
+                    tempF <- Cod_sumtab[[icol]]$SSB
+                    while(length(tempF)<dim(Cod_sumtab[[1]])[1]) tempF <- c(NA,tempF)
+                    myMat[,icol] <- tempF 
+                }
+                myVar <- apply(myMat,1,sum,na.rm=T)
+                myVar[which(myVar == 0)] <- NA # summing NA will do this, keeping the NA in place
+            },
+            Saithe = {myVar = Saithe_sumtab[[1]]$SSB},
+            {}
+    )
+    while (length(myVar)<length(timePeriod)) myVar <- c(NA,myVar)
+    SSBmat[,iSpecies] <- myVar  
+}
+write.csv(SSBmat, file = "data/SSBmat.csv")
 #time-averaged-SSB.csv
+# averaged subset
+SSBavg <- SSBmat[which(rownames(SSBmat) == "1985"):which(rownames(SSBmat) == "1995"),]
+SSBavg <- apply(SSBavg,2,mean,na.rm=T)
+SSBavg[is.nan(SSBavg)] <- NA
+SSBavg <- data.frame("species" = SpIdx, "SSB_8595" = SSBavg,row.names = NULL)
+write.csv(SSBavg, file = "data/time-averaged-SSB.csv", row.names = F)
+
+
 
 #### Then apply these new files to the toyexample1.R (time-averaged calibration) and toyexample2.R (time-series evaluation/exploration)
 #### Then apply these using Mike's code to do time-series fitting.
