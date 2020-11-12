@@ -15,7 +15,7 @@ shinyServer(function(input, output) {
    
   output$distPlot <- renderPlot({
     # set up params using values given, need check and change parameter values so units work in days units 
-    params@species_params$erepro <- rep(10^input$erepro,12)
+    params@species_params$erepro <- rep(10^input$erepro,dim(params@species_params)[1])
    # params@species_params$Rmax <- rep(10^input$Rmax,12)
     params <- setParams(params,kappa=10^input$kappa)
     # run without fishing
