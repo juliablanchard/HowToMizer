@@ -174,12 +174,14 @@ write.csv(fmat, file = "data/fmatWeighted.csv")
 
 #nseaparams.csv , "catachabliity column" - here puttinhg in the time-averaged F as a baseline reference value
 
-fAvg <- fmat[which(rownames(fmat) == "1985"):which(rownames(fmat) == "1995"),]
+fAvg <- fmat[which(rownames(fmat) == "2014"):which(rownames(fmat) == "2019"),]
 fAvg <- apply(fAvg,2,mean,na.rm=T)
 fAvg[is.nan(fAvg)] <- NA
 
 nsparams <- readr::read_csv("data/old/nsparams.csv")
+GurnardCatch <- nsparams$catchability[8]
 nsparams$catchability <- fAvg
+nsparams$catchability[8] <- GurnardCatch # there is no data so using catchability from old df to not have NAs
 write.csv(nsparams, file = "data/nsparams.csv")
 # Extract "catches" column and create time series of total catches (including discards) | RF catches column is already total catches
 
@@ -225,13 +227,13 @@ for(iSpecies in SpIdx)
     while (length(myVar)<length(timePeriod)) myVar <- c(NA,myVar)
     catchesMat[,iSpecies] <- myVar  
 }
-write.csv(catchesMat, file = "data/catchesMat.csv")
+write.csv(catchesMat, file = "data/catchesMat.csv") # loading from csv won't work with below code due to losing "years" as rownames
 #time-averaged-catches.csv
 # averaged subset
-catchAvg <- catchesMat[which(rownames(catchesMat) == "1985"):which(rownames(catchesMat) == "1995"),]
+catchAvg <- catchesMat[which(rownames(catchesMat) == "2014"):which(rownames(catchesMat) == "2019"),]
 catchAvg <- apply(catchAvg,2,mean,na.rm=T)
 catchAvg[is.nan(catchAvg)] <- NA
-catchAvg <- data.frame("species" = SpIdx, "Catch_8595_tonnes" = catchAvg,row.names = NULL)
+catchAvg <- data.frame("species" = SpIdx, "Catch_1419_tonnes" = catchAvg,row.names = NULL)
 write.csv(catchAvg, file = "data/time-averaged-catches.csv",row.names = F)
 
 # Extract "SSB" column and create time series of SSB
@@ -281,10 +283,10 @@ for(iSpecies in SpIdx)
 write.csv(SSBmat, file = "data/SSBmat.csv")
 #time-averaged-SSB.csv
 # averaged subset
-SSBavg <- SSBmat[which(rownames(SSBmat) == "1985"):which(rownames(SSBmat) == "1995"),]
+SSBavg <- SSBmat[which(rownames(SSBmat) == "2014"):which(rownames(SSBmat) == "2019"),]
 SSBavg <- apply(SSBavg,2,mean,na.rm=T)
 SSBavg[is.nan(SSBavg)] <- NA
-SSBavg <- data.frame("species" = SpIdx, "SSB_8595" = SSBavg,row.names = NULL)
+SSBavg <- data.frame("species" = SpIdx, "SSB_1419" = SSBavg,row.names = NULL)
 write.csv(SSBavg, file = "data/time-averaged-SSB.csv", row.names = F)
 
 
