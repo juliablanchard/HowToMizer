@@ -298,11 +298,24 @@ write.csv(SSBavg, file = "data/time-averaged-SSB.csv", row.names = F)
 
 
 
+#' how to get more F per year/species
+#' Fmat has data from 1983 up to 2010 for all species / should we use it?
+#' comparing old and new code over 2000-2010 period
+#' 
 
+newF <- fMatW[54:64,]
+oldF <- Fmat[,44:54]
+oldF <-t(oldF)
+oldF <- cbind(2000:2010,oldF)
 
+diff <- newF - oldF
+diff$X <- 2000:2010
 
+plot_dat <- reshape2::melt(diff,"X")
 
-
+ggplot(plot_dat)+
+  geom_line(aes(x = X, y = value, color = variable ))+
+ggtitle("newF - oldF")
 
 
 
@@ -370,7 +383,7 @@ Catch_8595["Saithe",1]<-mean(ns[ns$FishStock=="sai-3a46" & is.element(ns$Year, r
 
 # # # NOT AT PRESENT - Niels is looking into this 
 
-# # # Fmax: to calculate F at weight, the model  needs a maximum F value for each species, this is multiplied by the selectivity  at weight, such that Fmax will be achieved when selctivity is equal to one, and lower values of F for selectivities that are less than 1
+# # # Fmax: to calculate F at weight, the model  needs a maximum F value for each species, this is multiplied by the selectivity  at weight, such that Fmax will be achieved when selectivity is equal to one, and lower values of F for selectivities that are less than 1
 
 # # # The meanFs from Fishdata are averaged over the following ages for each species:
 
@@ -515,7 +528,7 @@ Fmat["Whiting",(length(Years)-length(ns[ns$FishStock=="whg-47d","MeanF"])+1):len
 
 # # # # # ASSUMPTIONS FOR MISSING Fmat VALUES!!!!
 
-# Past Sprat fishing mortalitues not known, but landings are known
+# Past Sprat fishing mortalities not known, but landings are known
 
 Fmat["Sprat",(length(Years)-length(Fsprat$Year)+1):length(Years)]<-Fsprat[,3]/meanSel["Sprat",1]
 
@@ -534,6 +547,8 @@ Fmat["Sprat", paste(1957:1990)]<-ratioFL*Landings["Sprat", paste(1957:1990)]
 
 
 # ratio of gurnard: whiting landings
+ 
+ #f0_8595 is catchability col from old_nsparams
 
 ratioGugWhg<-F0_8595["Gurnard",1]/F0_8595["Whiting",1] 
 ratioDabPle<-F0_8595["Dab",1]/F0_8595["Plaice",1] 
