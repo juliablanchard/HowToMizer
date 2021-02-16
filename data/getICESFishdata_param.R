@@ -234,6 +234,7 @@ catchAvg <- catchesMat[which(rownames(catchesMat) == "2014"):which(rownames(catc
 catchAvg <- apply(catchAvg,2,mean,na.rm=T)
 catchAvg[is.nan(catchAvg)] <- NA
 catchAvg <- data.frame("species" = SpIdx, "Catch_1419_tonnes" = catchAvg,row.names = NULL)
+
 write.csv(catchAvg, file = "data/time-averaged-catches.csv",row.names = F)
 
 # Extract "SSB" column and create time series of SSB
