@@ -34,16 +34,16 @@ library(tidyverse)
 
 ```
 
-Let's read in the saved calibrated parameters of the North sea model stored in the mizer package. These examples do not use the exact same paramters as in the published papers, so are for illustrative purposes here.
+Let's read in the saved calibrated parameters of the North sea model stored in the mizer package. These examples do not use the exact same parameters as in the published papers, so are for illustrative purposes here.
 
 ```{r,warnings=F}
 #read saved sim object from previous example
-sim <- readRDS("optim_sim.RDS")
+sim <- readRDS("optim_para_sim.RDS")
 params<-sim@params
 
 # run model to equilibrium and plot results, with fishing.
 # here an effort = 1 will equate to a fihsing mortality rate = 1 and uses the default knife-edge selectivity function
-sim <- project(params, effort = 1, t_max = 200, dt=0.1,initial_n = sim@n[500,,], initial_npp = sim@n[500,])
+sim <- project(params, effort = 1, t_max = 200, dt=0.1,initial_n = sim@n[dim(sim@n)[1],,], initial_npp = sim@n[dim(sim@n)[1],])
 
 plot(sim)
 plotSpectra(sim,power=2,total =T)
@@ -94,7 +94,7 @@ Next, we will read in fishing mortality rate time series (note: this matrix is d
 ```{r}
 #read saved data
 
-f_history<-as(read.csv("data/fmat.csv", row.names=1), "matrix")[as.character(1967:2010),]
+f_history<-as(read.csv("data/fmat.csv", row.names=1), "matrix")[as.character(1967:2019),]
 
 #the below one is stored on the mizer website.
 #f_history<-as(read.csv("data/NS_f_history.csv", row.names=1), "matrix")
@@ -110,11 +110,18 @@ relative_effort[as.character(1988:1992),]
 
 
 # add a linear ramping up up period from 1867 -1967 
+firstRecordedEffort <- NULL
+for(iSpecies in 1:ncol(relative_effort))
+firstRecordedEffort <- c(firstRecordedEffort,relative_effort[which(!is.na(relative_effort[,iSpecies]))[1],iSpecies]) # first value of F for each species (different years)
+# Gurnard has no data so inputing same value as whiting
+firstRecordedEffort[8] <- firstRecordedEffort[6]
 
-initial_effort <- matrix(relative_effort[1, ], byrow = TRUE, nrow = 100,
+initial_effort <- matrix(firstRecordedEffort, byrow = TRUE, nrow = 100,
                          ncol = ncol(relative_effort), dimnames = list(1867:1966))
 
 initial_effort ["1867",] <- 0
+
+# doesn't work cause fmat is full of NAs
 
 for (i in 1:12) initial_effort [as.character(1867:1966),i] <- seq(from = initial_effort ["1867",i], to = initial_effort ["1966",i], length = 1966-1867+1)
 
@@ -123,7 +130,7 @@ initial_effort[as.character(1867:1900),]
 
 relative_effort <- rbind(initial_effort, relative_effort)
 
-
+# still a bunch of NAs in there, what do we do about it?
 ##### project model
 
 simt <- project(params, effort = relative_effort, dt = 0.25, t_save = 1)
