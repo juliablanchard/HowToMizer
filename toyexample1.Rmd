@@ -3,7 +3,8 @@ title: "Example #1: Calibration Protocol - Time-Averaged"
 author: Julia L. Blanchard
 date: July 2020
 place: Hobart, Australia
-output: html_document
+output: pdf_document
+always_allow_html: true
 #runtime: shiny
 ---
 
@@ -19,13 +20,13 @@ other life-history parameters such as the size at maturity (Hartvig et al. 2011,
 
 Here we focus on multispecies size spectrum models. In practice, these models have been parametrised in a few different ways depending on data availability for a system or research questions.
 
-Some studies have focused on  many species-specific values, for example where each species have different values of life-history, size-selective feeding trait parameters (e.g. \beta and \sigma), and details of species interactions (Blanchard et al. 2014, Reum et al. 208) to better capture the dynamics of marine food webs. 
+Some studies have focused on  many species-specific values, for example where each species have different values of life-history, size-selective feeding trait parameters (e.g. $\beta$ and $\sigma$), and details of species interactions (Blanchard et al. 2014, Reum et al. 208) to better capture the dynamics of marine food webs. 
 
 Others, such as Jacobsen et al. (2014, 2016), have represented variation in only a couple of the most important life history parameters for each species - asymptotic size (which links to other parameters such as maturation size) and recruitment parameters (Rmax, eRepro) to broadly capture fished communities or carry out across ecosystem comparisons. 
 
 Once you have parametrised the multispecies model for your system, you may find that species do not coexist or the biomass or catches are very different from your observations. After the model is parameterised and asssessed for basic principles and coexistence (see section x - Gustav?), further calibration to observational data is used to ensure the relative abundance of each species reflects the system, at least during a stable period, which is time-averaged. 
 
-The background resource parameters and the recruitment parameters, \Rmax (maximum recruitment) and \erepro (reproductive efficiency) greatly affect the biomasses of species in your system. 
+The background resource parameters and the recruitment parameters, $Rmax$ (maximum recruitment) and $erepro$ (reproductive efficiency) greatly affect the biomasses of species in your system. 
 
 The recruitment parameters are highly uncertain and capture density dependent processes in the model that limit the number of offspring that successfully recruit to the smallest size class for each species. In the default mizer package these parameters are used to implement an emergent Beverton-Holt type stock recruitment relationship. 
 
@@ -37,15 +38,15 @@ As a starting point, we will estimate these parameters as a means of fitting the
 We will adapt the "recipe" for calibration in Jacobsen et al 2014 (see supp. mat.) and Blanchard et al (2014), into the following steps:
 
 
-0. Run the model with the chosen species-specific parameters. This will relate some of the missing parameters to \Winf ( h and gamma - explain through simple example of how the model works?). \Rmax (see example that explains Rmax?) could also be automatically calculated based on equilbrium assumptions (Andersen et al. 2016) but by default it is "Inf", which means there is no density dependence associated with spawner-recruit dynamics. #RF(default is not Inf)
+0. Run the model with the chosen species-specific parameters. This will relate some of the missing parameters to $Winf$ ( h and gamma - explain through simple example of how the model works?). $Rmax$ (see example that explains Rmax?) could also be automatically calculated based on equilbrium assumptions (Andersen et al. 2016) but by default it is "Inf", which means there is no density dependence associated with spawner-recruit dynamics. #RF(default is not Inf)
 
 1. Obtain the time-averaged data (e.g. catches or biomasses for each species) and the time-averaged fishing mortalty inputs (e.g. from stock assessments). Typically this should be over a stable part of the time series for your system.
 
-2. Start with the chosen parameters for \kappa and \lambda of the resource spectrum that are obtained from the literature regarding the community size spectrum. These can be very uncertain and sometimes are not available. Calibrate the carrying capacity of the background resource spectrum, \kappa, by examining the feeding level, biomass through time, and overall size spectrum. 
+2. Start with the chosen parameters for $\kappa$ and $\lambda$ of the resource spectrum that are obtained from the literature regarding the community size spectrum. These can be very uncertain and sometimes are not available. Calibrate the carrying capacity of the background resource spectrum, $\kappa$, by examining the feeding level, biomass through time, and overall size spectrum. 
 
-3. Calibrate the maximum recruitment, \Rmax, which will affect the relative biomass of each species (and, combined with the fishing parameters, the catches) by minimising the error between observed and estimated catches (again or biomasses).
+3. Calibrate the maximum recruitment, $Rmax$, which will affect the relative biomass of each species (and, combined with the fishing parameters, the catches) by minimising the error between observed and estimated catches (again or biomasses).
 
-4. Check that the physiological recruitment, \RDI, is much higher than the realised recruitment, \RDD. This can be done using the getRDD and getRDI functions and calculating the ratio which should be around 100 for a species with \Winf = 1500g, but varies with asymptotic size and fishing mortality (Andersen 2019). High RDI/RDD ratio indicates the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. If RDI/RDD is too high, the efficiency of reproduction (erepro) can be lowered to ensure species do not outcompete others or or over-resilient to fishing. Lowering erepro biologically means higher egg mortality rate or wasteful energy invested into gonads. If RDI/RDD = 1 the species is in the linear part of the stock recruitment relationship (no spawner-recruit density dependence).
+4. Check that the physiological recruitment, $RDI$, is much higher than the realised recruitment, $RDD$. This can be done using the getRDD and getRDI functions and calculating the ratio which should be around 100 for a species with $Winf$ = 1500g, but varies with asymptotic size and fishing mortality (Andersen 2019). High RDI/RDD ratio indicates the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. If RDI/RDD is too high, the efficiency of reproduction (erepro) can be lowered to ensure species do not outcompete others or or over-resilient to fishing. Lowering erepro biologically means higher egg mortality rate or wasteful energy invested into gonads. If RDI/RDD = 1 the species is in the linear part of the stock recruitment relationship (no spawner-recruit density dependence).
 
 5. Verify the model after the above step by comparing the model with: species biomass or abundance distributions, feeding level, natural mortality, growth, vulnerablity to fishing (fmsy) and catch, diet composition. Many handy functions for plotting these are available here: https://sizespectrum.org/mizer/reference/index.html
 
@@ -53,6 +54,11 @@ We will adapt the "recipe" for calibration in Jacobsen et al 2014 (see supp. mat
 
 ### Step 0. Run the model with the chosen species-specific parameters. This will relate some of the missing parameters to W_inf. R_max will also be automatically calculated based on equilbrium assumptions (Andersen et al. 2016).
 
+objectives:
+
+- create dataframe with species-specific parameters
+
+- run the first projection to see how the model behave with the new parameters
 
 Let's read in the North Sea model parameters, stored in mizer.
 
@@ -113,6 +119,13 @@ Oh dear, all of the species but three have collapsed! This is because there was 
 
 ### Step 1. Obtain the time-averaged data (e.g. catches or biomasses for each species) and the time-averaged fishing mortalty inputs (e.g. from stock assessments). Typically this should be over a stable part of the time series for your system.
 
+objective:
+
+- download fisheries data that will serve to calibrate the model output to real data
+can be included in step 0 since we are not working in Mizer itself
+
+
+
 The following .csv are extracted from the ICES database using "data/getICESFishdata_param.R". Fishing data is averaged over 2014-2019 as it's a relatively stable period in catches.
 ```{r step 1}
 
@@ -134,6 +147,16 @@ ssbAvg <- read.csv("data/time-averaged-SSB.csv")
 
 
 ### Step 2. Calibrate the carrying capacity of the background resource spectrum, kappa, at steady state 
+
+objective
+
+- manipulate kappa / erepro and Rmax to reach coexistence (using project / project to steady / rshiny app)
+
+- check growth curve and plankton (influenced by kappa) to see if it differ too much from reality, otherwise back to previous step
+
+- at the end of this step we should have coexistence between every species while having growth curve close to von bertalanffy (data poor) or close to data (if we have any) and no infinite plankton
+
+
 
 ```{r step 2 - guessing coexistence}
 
@@ -171,6 +194,8 @@ Species are coexisting (but Sprat's still low). This is in part because we appli
 
 
 We could explore the effects further using Rshiny app, where we also have a plot of the biomass or catch data. First let's look at the basic diagnostics and tune kappa and erepro to make sure the feeding levels are high enough for each species and that biomasses coexist. 
+
+Rshiny section disable for pdf
 
 ```{r step 2 r-shiny, eval = F, cache = F}
 # Optional
@@ -234,9 +259,125 @@ The shiny app helps with understanding the model but it is tricky to arrive at t
 
 Let's choose some values that enable the most species to coexist as a starting point for optimisation. Note we won't vary erepro at the same time as Rmax (they depend on each other). However we will use the value of erepro selected from the shiny app.
 
+
+Varying kappa will affect the species' growth curve, we need to check the modelled growth curves agaisnt the “observed” von Bertlanffy growth curves in case varying kappa divert too much the emergent growth curves.
+
+```{r step 2 - growth curves}
+
+# This function is going to be integrated in sizespectrum/mizer
+plotGrowthCurves <- function (object, 
+                              species, 
+                              max_age = 20, 
+                              percentage = FALSE, 
+                              species_panel = FALSE,
+                              highlight = NULL) 
+{
+    if (is(object, "MizerSim")) {
+        params <- object@params
+        t <- dim(object@n)[1]
+        params@initial_n[] <- object@n[t, , ] # Designed to work also with single species
+        params@initial_n_pp <- object@n_pp[t, ]
+    } else if (is(object, "MizerParams")) {
+        params <- validParams(object)
+    }
+    if (missing(species)) {
+        species <- params@species_params$species
+    }
+    ws <- getGrowthCurves(params, species, max_age, percentage)
+    plot_dat <- reshape2::melt(ws)
+    plot_dat$Species <- factor(plot_dat$Species, params@species_params$species)
+    plot_dat$legend <- "model"
+    
+    # creating some VB
+    if (all(c("a", "b", "k_vb") %in% names(params@species_params))) 
+    {
+        VBdf <- data.frame("species" = params@species_params$species, "w_inf" = params@species_params$w_inf, "a" = params@species_params$a, "b" = params@species_params$b, "k_vb" = params@species_params$k_vb, "t0" = 0) 
+        VBdf$L_inf <- (VBdf$w_inf / VBdf$a)^(1/VBdf$b)
+        plot_dat2 <- plot_dat
+        plot_dat2$value <- apply(plot_dat,1,function(x, VBdf){VBdf[which(VBdf$species == x[1]),]$a * 
+                (VBdf[which(VBdf$species == x[1]),]$L_inf * (1 - exp(-VBdf[which(VBdf$species == x[1]),]$k_vb * 
+                                                                         (as.numeric(x[2]) - VBdf[which(VBdf$species == x[1]),]$t0))))^VBdf[which(VBdf$species == x[1]),]$b}, VBdf)
+        plot_dat2$legend <- "von Bertalanffy"
+        plot_dat <- rbind(plot_dat,plot_dat2)
+    }
+    
+    p <- ggplot(filter(plot_dat, legend == "model")) + geom_line(aes(x = Age, y = value, 
+                                                                     colour = Species, linetype = Species, size = Species))
+    y_label <- if (percentage) 
+        "Percent of maximum size"
+    else "Size [g]"
+    linesize <- rep(0.8, length(params@linetype))
+    names(linesize) <- names(params@linetype)
+    linesize[highlight] <- 1.6
+    p <- p + scale_x_continuous(name = "Age [Years]") + 
+        scale_y_continuous(name = y_label) + 
+        scale_colour_manual(values = params@linecolour) + 
+        scale_linetype_manual(values = params@linetype) + 
+        scale_size_manual(values = linesize)
+    
+    # starting cases now
+    if(!percentage)
+    {
+        
+        if (length(species) == 1) {
+            idx <- which(params@species_params$species == species)
+            w_inf <- params@species_params$w_inf[idx]
+            p <- p + geom_hline(yintercept = w_inf, colour = "grey") + 
+                annotate("text", 0, w_inf, vjust = -1, label = "Maximum")
+            w_mat <- params@species_params$w_mat[idx]
+            p <- p + geom_hline(yintercept = w_mat, linetype = "dashed", colour = "grey") + 
+                annotate("text", 0, w_mat, vjust = -1, label = "Maturity")
+            if ("von Bertalanffy" %in% plot_dat$legend) 
+                p <- p + geom_line(data = filter(plot_dat, legend == "von Bertalanffy"), aes(x = Age, y = value))
+            
+        } else if(species_panel) # need to add either no panel if no param for VB or create a panel without VB
+        {
+            p <- ggplot(plot_dat) +
+                geom_line(aes(x = Age, y = value , colour = legend)) +
+                scale_x_continuous(name = "Age [years]") +
+                scale_y_continuous(name = "Size [g]") +
+                geom_hline(aes(yintercept = w_mat),
+                           data = tibble(Species = object@params@species_params$species[],
+                                         w_mat = object@params@species_params$w_mat[]),
+                           linetype = "dashed",
+                           colour = "grey") +
+                geom_hline(aes(yintercept = w_inf),
+                           data = tibble(Species = object@params@species_params$species[],
+                                         w_inf = object@params@species_params$w_inf[]),
+                           linetype = "solid",
+                           colour = "grey") +
+                facet_wrap(~Species, scales = "free_y")
+            
+        }
+    }
+    return(p)
+}
+
+# All emergent and observed growth curves as pannels
+plotGrowthCurves(sim_guessed, species_panel = T)
+
+# All emergent growth curves together
+plotGrowthCurves(sim_guessed, percentage = T)
+
+# One by one observed vs emergent
+plotGrowthCurves(sim_guessed, species = "Cod")
+
+
+
+
+```
+
+
+
+
+
 ### Step 3. Calibrate the maximum recruitment
 
-\Rmax will affect the relative biomass of each species (and, combined with the fishing parameters, the catches) by minimising the error between observed and estimated catches or biomasses. We could also include kappa in our estimation here (as in Blanchard et al 2104 & Spence et al 2016) but instead we will use the value that seemed OK in terms of feeding levels in the shiny app, roughly log10(11.5). Same goes for erepro, a value of 1e-3 seemed ok.
+objective:
+
+- rmax is species specific and hard to guess, using a function instead comparing predicted yield and actual yield
+
+$Rmax$ will affect the relative biomass of each species (and, combined with the fishing parameters, the catches) by minimising the error between observed and estimated catches or biomasses. We could also include kappa in our estimation here (as in Blanchard et al 2104 & Spence et al 2016) but instead we will use the value that seemed OK in terms of feeding levels in the shiny app, roughly log10(11.5). Same goes for erepro, a value of 1e-3 seemed ok.
 
 First let's set up a function running the model and outputing the difference between predicted catches (getYield()) and actual catches (cdat). err is the sum of squared errors between the two.
 
@@ -329,7 +470,7 @@ This might take AWHILE. Go watch some Netflix. #RF De*th to Corpos, use PopcornT
 
 The output is saved as "optim_para_result" if you wish to skip this block
 
-```{r step 3 optimisation, message = F, eval=T}
+```{r step 3 optimisation, message = F, eval=F}
 
 # read in a set of optimized params
 # params<- readRDS("optim_param.RDS")
@@ -386,13 +527,63 @@ saveRDS(sim_optim,"optim_para_sim.RDS")
 plot(sim_optim)
 ```
 
-### Step 4. Check the level of density dependence. Is the physiological recruitment, \RDI, much higher than the realised recruitment, \RDD. High RDI/RDD ratio indicates strong density dependence.
+### Step 4. Check the level of density dependence. Is the physiological recruitment, $RDI$, much higher than the realised recruitment, $RDD$. High RDI/RDD ratio indicates strong density dependence.
+
+objective:
+
+- check if Rmax severly reduce spawn output per species
 
 ```{r step 4}
-  # params<- readRDS("optimx2_param.RDS")
-  # sim <- readRDS("optimx2_sim.RDS")
+
+# plot_dat <- as.data.frame(getRDI(sim_optim@params)/getRDD(sim_optim@params))
+# plot_dat$species <- factor(rownames(plot_dat),sim_optim@params@species_params$species)
+# colnames(plot_dat)[1] <- "ratio"
+# 
+# ggplot(plot_dat) +
+#   geom_bar(aes(x = species, y = ratio, fill = species),stat="identity") +
+#   scale_fill_manual(name = "Species", values = sim_optim@params@linecolour) +
+#   scale_y_continuous(name = "RDI/RDD") +
+#   scale_x_discrete(name = "Species") +
+#    theme(panel.background = element_rect(fill = "white", color = "black"),
+#         legend.position = "none") 
+# 
+# getRDI(sim_optim@params)/getRDD(sim_optim@params)
+# 
+# plot_dat$w_inf <- sim_optim@params@species_params$w_inf
+# 
+# ggplot(plot_dat)+
+#   geom_point(aes(x = w_inf, y = ratio, color = species), size = 6, alpha = .8) +
+#   geom_hline(yintercept = 1, linetype = "dashed")+
+#   scale_y_continuous(name = "RDI/RDD", limits = c(1,NA)) +
+#   scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+#   scale_color_manual(name = "Species", values = sim_optim@params@linecolour) +
+#   theme(panel.background = element_rect(fill = "white", color = "black"),
+#         legend.justification=c(1,1),legend.key = element_rect(fill = "white"))
+
+
+
+  plot_dat <- as.data.frame(getRDI(sim_optim@params)/getRDD(sim_optim@params))
+  plot_dat$species <- factor(rownames(plot_dat),sim_optim@params@species_params$species)
+  colnames(plot_dat)[1] <- "ratio"
+  plot_dat$w_inf <- as.numeric(sim_optim@params@species_params$w_inf)
+  
+  # trying to have bars at their w_inf but on a continuous scale
+  plot_dat$label <- plot_dat$species
+  plot_dat2 <- plot_dat
+  plot_dat2$ratio <- 0
+  plot_dat2$label <- NA
+  plot_dat <- rbind(plot_dat,plot_dat2)
+  
+ggplot(plot_dat) +
+    geom_line(aes(x = w_inf, y = ratio, color = species), size = 20, alpha = .8) +
+    geom_text(aes(x = w_inf, y = ratio, label = label),position = position_stack(vjust = 0.5), angle = 30)+
+    scale_color_manual(name = "Species", values = sim_optim@params@linecolour) +
+    scale_y_continuous(name = "R0") +
+    scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+    theme(legend.position = "none") 
 
 getRDI(sim_optim@params)/getRDD(sim_optim@params)
+
 
 # seems like there is little density dependence 
 
@@ -410,7 +601,126 @@ getRDI(sim_optim@params)/getRDD(sim_optim@params)
 Eg. species biomass or abundance distrubtions, feeding level, naturality mortality, growth, vulnerablity to fishing (fmsy) and catch, diet composition... Many handy functions for plotting these are available here: https://sizespectrum.org/mizer/reference/index.html
 
 
-```{r step 5}
+```{r step 5 - diagnostic functions}
+
+# hopefully all of this will go on sizespectrum/mizer, in the meantime
+
+require(cowplot)
+require(gridExtra)
+
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+plotSummary <- function (x, y, power = 2, ...) 
+{
+  xlim = c(x@params@w[1],10^log10(max(x@params@species_params$w_inf)))
+  
+  # need to display the legend at the bottom and only p1 has the background so using that one
+  
+  p1 <- plotSpectra(x, power = power, ...)
+  p1 <- p1  + scale_x_continuous(limits = xlim, trans = "log10") +
+             theme(axis.title.x=element_blank(),
+                    axis.text.x=element_blank(),
+                    axis.ticks.x=element_blank(),
+                    legend.position = "bottom", legend.key = element_rect(fill = "white"))+
+    guides(color = guide_legend(nrow=2))
+  
+  # mylegend<-g_legend(p1) # save the legend
+  p1 <- p1 + theme(legend.position = "none") # now remove it from the plot itself
+  
+  
+  p2 <- plotFeedingLevel(x, include_critical = F, ...)
+  p2 <- p2 + scale_x_continuous(limits = xlim, trans = "log10") +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          legend.position = "none")
+  p3 <- plotPredMort(x, ...)
+  p3 <- p3 + scale_x_continuous(limits = xlim, trans = "log10") +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          legend.position = "none")
+  p4 <- plotFMort(x, ...)
+  p4 <- p4 + scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size (g)") +
+    theme(legend.position = "none")
+  
+# yeild and ssb |
+  
+  bm <- getBiomassFrame(x)
+  plot_dat <- filter(bm, Year == max(unique(bm$Year)))
+  # plot_dat$w_inf <- x@params@species_params$w_inf
+  yieldDat <- getYield(x)
+  plot_dat$yield <- yieldDat[dim(yieldDat)[1],]
+  plot_dat$Year <- NULL
+  plot_dat <- melt(plot_dat,"Species")
+  
+  
+
+  p5 <- ggplot(plot_dat) +
+    geom_bar(aes(x = Species,y = value, fill = Species, alpha = variable), stat = "identity", position = position_dodge()) +
+    coord_cartesian(ylim = c(0.5*min(plot_dat$value),NA)) +
+    # geom_text(aes(x = Species, y = value, label = Species), check_overlap = T)+
+    
+    # geom_point(aes(x = w_inf, y = Biomass, color = species)) +
+    # geom_point(aes(x = w_inf, y = yield, color = species), shape = "+", size = 5) +
+    # scale_x_continuous(name = "SSB and Yield") +
+    scale_y_continuous(trans = "log10", name = "SSB and Yield") + #, limits = c(0.5*min(plot_dat$value),NA)) +
+    scale_fill_manual(name = "Species", values = x@params@linecolour) +
+    scale_alpha_manual(name = "Stat", values = c(1, 0.5), labels = c("SSB","Yield")) +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          legend.position = "bottom", legend.key = element_rect(fill = "white"))
+  
+  mylegend<-g_legend(p5) # save the legend
+  p5 <- p5 + theme(legend.position = "none")
+  
+  # try yield divided by total biomass, we want to see the difference
+  
+  # r0
+  
+  plot_dat <- as.data.frame(getRDI(x@params)/getRDD(x@params))
+  plot_dat$species <- factor(rownames(plot_dat),x@params@species_params$species)
+  colnames(plot_dat)[1] <- "ratio"
+  plot_dat$w_inf <- as.numeric(x@params@species_params$w_inf)
+  
+  # trying to have bars at their w_inf but on a continuous scale
+  plot_dat$label <- plot_dat$species
+  plot_dat2 <- plot_dat
+  plot_dat2$ratio <- 0
+  plot_dat2$label <- NA
+  plot_dat <- rbind(plot_dat,plot_dat2)
+  
+  
+  p6 <- ggplot(plot_dat) +
+    geom_line(aes(x = w_inf, y = ratio, color = species), size = 15, alpha = .8) +
+    geom_text(aes(x = w_inf, y = ratio, label = label),position = position_stack(vjust = 0.5), angle = 30, size = 3)+
+    scale_color_manual(name = "Species", values = x@params@linecolour) +
+    scale_y_continuous(name = "RDI/RDD") +
+    scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+    theme(legend.position = "none") 
+  
+  p7 <- plotBiomass(x)
+  p7 <- p7 + theme(legend.position = "none")
+    #scale_x_continuous(limits = xlim, trans = "log10") +
+  #   theme(axis.title.x=element_blank(),
+  #         axis.text.x=element_blank(),
+  #         axis.ticks.x=element_blank(),
+  #         legend.position = "none")
+
+  p10 <- plot_grid(p1,p2,p3,p4, p5, p6, p7, mylegend, byrow = F,  
+                   # rel_heights = c(1,1,1,2),
+                   rel_widths = c(2,1),
+            nrow = 4, align = "v", axis = "l")
+  
+ # p <- grid.arrange(p10,mylegend, nrow=2,heights=c(9.5,0.5))
+return(p10)
+}
+
 
 plotPredObsYield <-function(sim,dat){
 ## check obs vs. predicted yield
@@ -430,8 +740,36 @@ p <- ggplot() + # plot predicted and observed yields
 return(p)
 } 
 
+plotDiet2 <- function (object, species, xlim = c(1,NA)) 
+{
+    params <- validParams(object)
+    if (is.integer(species)) {
+        species <- params@species_params$species[species]
+    }
+    diet <- getDiet(params)[params@species_params$species == 
+        species, , ]
+    prey <- dimnames(diet)$prey
+    prey <- factor(prey, levels = rev(prey))
+    plot_dat <- data.frame(Proportion = c(diet), w = params@w, 
+        Prey = rep(prey, each = length(params@w)))
+    plot_dat <- plot_dat[plot_dat$Proportion > 0, ]
+    ggplot(plot_dat) + geom_area(aes(x = w, y = Proportion, fill = Prey)) + 
+        scale_x_log10(limits = xlim) + labs(x = "Size [g]") + scale_fill_manual(values = params@linecolour)
+}
+
+```
+
+
+```{r step 5 - plots}
+
+plotSummary(sim_optim)
+
+
 plotPredObsYield(sim_optim,catchAvg$Catch_1419_tonnes) 
-# check other plots
+
+plotDiet2(sim_optim@params,"Cod") 
+
+# interactive plots / won't be displayed in pdf
 plotlyBiomass(sim_optim)
 plotlySpectra(sim_optim)
 plotlySpectra(sim_optim,power=2,total = T)
@@ -441,10 +779,8 @@ plotlyFeedingLevel(sim_optim)
 
 plotlyPredMort(sim_optim)
 plotlyFMort(sim_optim)
-# plotGrowthCurves(sim,"Cod") # check each species - not sure if these kvb params are correct/or should not be used in this way (the ones I initially used were maximal values) - ideally we would have data here as growth is actually highly variable.
 
-plotDiet(sim_optim@params,"Cod") ## perhaps feeding too much on background resource, although here note that is "other food" too, such as benthos.
-# plotDiet(sim_optim@params,"Sprat")
+
 
 # What would happen if we also parameterised the interaction matrix or beta and sigma?
 
