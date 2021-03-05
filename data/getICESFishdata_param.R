@@ -544,13 +544,20 @@ Fmat["Sprat", paste(1957:1990)]<-ratioFL*Landings["Sprat", paste(1957:1990)]
  Fmat["Whiting",]<-ifelse(is.na(Fmat["Whiting",]),lmWhit[1]+ lmWhit[2]*Fmat["Haddock",is.na(Fmat["Whiting",])],Fmat["Whiting",])
 
 
-# Gurnard and Dab neither fishing moratlity nor biomass are known, assume bycatch in other fisheries inferred from mean ratio of Fs with target species ( and mean assumed form Pope beam trawl study for Dab and Gurnard)
+# Gurnard and Dab neither fishing moratlity nor biomass are known, assume bycatch in other fisheries inferred from mean ratio of Fs with target species 
+# ( and mean assumed form Pope beam trawl study for Dab and Gurnard)
 
-
+### RF updating fisheries time series using ratio between known species and unknown species
 # ratio of gurnard: whiting landings
  
- #f0_8595 is catchability col from old_nsparams
-
+nsparams <- read.csv("data/nsparams.csv") 
+Fmat <- read.csv("data/fmatWeighted.csv")
+ratioGugWhg <- nsparams$catchability[which(nsparams$species == "Gurnard")]/nsparams$catchability[which(nsparams$species == "Whiting")]
+Fmat[,"Gurnard"] <- ratioGugWhg*Fmat[,"Whiting"]
+saveRDS(Fmat,"data/FmatWeightedInterpolated.rds")
+ 
+ 
+#f0_8595 is catchability col from old_nsparams
 ratioGugWhg<-F0_8595["Gurnard",1]/F0_8595["Whiting",1] 
 ratioDabPle<-F0_8595["Dab",1]/F0_8595["Plaice",1] 
 
