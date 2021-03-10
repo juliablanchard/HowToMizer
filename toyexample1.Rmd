@@ -3,7 +3,8 @@ title: "Example #1: Calibration Protocol - Time-Averaged"
 author: Julia L. Blanchard
 date: July 2020
 place: Hobart, Australia
-output: pdf_document
+#output: pdf_document
+output: html_document
 always_allow_html: true
 #runtime: shiny
 ---
