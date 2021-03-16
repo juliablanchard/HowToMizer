@@ -35,7 +35,14 @@ The recruitment parameters capture those density dependent effects that are not 
 
 As a starting point, we will estimate these parameters as a means of fitting the modelled species catches to the observed catches. This could similarly be carried out with biomasses. Other model detailed approaches also exist, see the main paper, but this approach has been used to get models in the right "ball-park", which can them be further evaluated using diagnostics (example X) and fitted to time series data (example XX).
 
+TODO new structure
 
+1: Set up the model and initial simulation (as now). Use eRepro = 0.01 and Rmax = inf.
+2: Calibrating Rmax only. Do it by reducing Rmax of the larger species “by hand” (as now). Show the RDI/RDD plot. Show the plotPredObsYield plot
+3: Calibrating Rmax with optimisation (the current section 3). show the plotPredObsYield plot.
+4: Calibrate growth. Plot the growth curves. Introduce how they can (to some degree) be affected by kappa.
+5: Calibrate recruitment (eRepro). Explain what eRepro does, and use the app to manually play around with eRepro. Show how eRepro affects the Fmsy. Go through adjustments of eRepro of individual species to obtain a better predicted Fmsy.
+[6: Calibrate food competition (rPP) — to be discussed/written]
 
 
 
@@ -47,16 +54,15 @@ We will adapt the "recipe" for calibration in Jacobsen et al 2014 (see supp. mat
 
 1. Obtain the time-averaged data (e.g. catches or biomasses for each species) and the time-averaged fishing mortalty inputs (e.g. from stock assessments). Typically this should be over a stable part of the time series for your system.
 
-2. Calibrate the maximum recruitment, $R_{max}$ by hand by penalising the reproductive capacity of the largest species.  Check that the physiological recruitment, $RDI$, is much higher than the realised recruitment, $RDD$.
+2. Start with the chosen parameters for $\kappa$ and $\lambda$ of the resource spectrum that are obtained from the literature regarding the community size spectrum. These can be very uncertain and sometimes are not available. Calibrate the carrying capacity of the background resource spectrum, $\kappa$, by examining the feeding level, biomass through time, and overall size spectrum. 
 
-3. Calibrate the maximum recruitment, $R_{max}$ with optimisation, by minimising the error between observed and estimated catches. 
+3. Calibrate the maximum recruitment, $R_{max}$, which will affect the relative biomass of each species (and, combined with the fishing parameters, the catches) by minimising the error between observed and estimated catches (again or biomasses).
 
-4. Calibrate growth by changing the carrying capacity of the background resource spectrum ($\kappa$)
+4. Check that the physiological recruitment, $RDI$, is much higher than the realised recruitment, $RDD$. This can be done using the `getRDD()` and `getRDI()` functions and calculating the ratio which should be around 100 for a species with $w_{inf} = 1500g$ (e.g. Whiting/Plaice), but varies with asymptotic size and fishing mortality (Andersen 2019). High $RDI/RDD$ ratio indicates the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. If $RDI/RDD$ is too high, the efficiency of reproduction ($erepro$) can be lowered to ensure species do not outcompete others or or over-resilient to fishing. Lowering $erepro$ biologically means higher egg mortality rate or wasteful energy invested into gonads. If $RDI/RDD = 1$ the species is in the linear part of the stock recruitment relationship (no spawner-recruit density dependence).
 
-5. Calibrate recruitment via $eRepro$
+5. Verify the model after the above step by comparing the model with: species biomass or abundance distributions, feeding level, natural mortality, growth, vulnerablity to fishing (fmsy) and catch, diet composition. Many handy functions for plotting these are available here: https://sizespectrum.org/mizer/reference/index.html
 
-6.Calibrate the food competition
-
+6. The final verification step is to force the model with time-varying fishing mortality to assess whether changes in time series in biomassess and catches capture observed trends. The model will not cpature all of the fluctuations from environmental processes (unless some of these are included), but should match the magnitude and general trend in the data. (RF: this is going to be Example2)
 
 ## Step 0. Run the model with the chosen species-specific parameters.
 
@@ -240,53 +246,13 @@ plotSummary <- function (x, y, power = 2, wlim = c(.1,NA), short = F, ...)
  # p <- grid.arrange(p10,mylegend, nrow=2,heights=c(9.5,0.5))
 return(p10)
 }
-
-
-# hopefully all of this will go on sizespectrum/mizer, in the meantime
-
-plotPredObsYield <-function(sim,dat){
-## check obs vs. predicted yield
-#sim<-newsim
-pred_yield <-melt(getYield(sim)[100,]/1e6)
-pred_yield$obs <- dat
-pred_yield$species <-row.names(pred_yield)
-
-p <- ggplot() + # plot predicted and observed yields
-        geom_point(data = pred_yield, 
-            aes(x = log10(value), y = log10(obs), color = species)) +
-  scale_color_manual(values = sim@params@linecolour) +
-   # plot optimal fit line
-        geom_abline(color = "black", slope = 1, intercept = 0) + 
-  xlab("log10 Predicted Yield") + 
-  ylab("log10 Observed Yield") #+ 
- # scale_fill_manual(values = wes_palette(12, "Zissou")) 
-return(p)
-} 
-
-plotDiet2 <- function (sim, species, xlim = c(1,NA)) 
-{
-  params <- sim@params
-    if (is.integer(species)) {
-        species <- params@species_params$species[species]
-    }
-    diet <- getDiet(params)[params@species_params$species == 
-        species, , ]
-    prey <- dimnames(diet)$prey
-    prey <- factor(prey, levels = rev(prey))
-    plot_dat <- data.frame(Proportion = c(diet), w = params@w, 
-        Prey = rep(prey, each = length(params@w)))
-    plot_dat <- plot_dat[plot_dat$Proportion > 0, ]
-    ggplot(plot_dat) + geom_area(aes(x = w, y = Proportion, fill = Prey)) + 
-        scale_x_log10(limits = xlim) + labs(x = "Size [g]") + scale_fill_manual(values = sim@params@linecolour)
-}
-
 ```
+
+
 
 ```{r step 0 - parameters}
 
 params_uncalibrated <- newMultispeciesParams(nsParams, inter, kappa = 1e11, max_w=1e6) # inter comes with loading "mizer"
-
-params_uncalibrated@species_params$erepro <- .01 # default is 1
 
 # note the volume of this model is set to the reflect the entire volume of the North Sea - hence the very large kappa value. This is system specific and you may wnat to work with per m^3 as in the defaults.
 
@@ -372,15 +338,13 @@ plotSummary(sim_uncalibrated, short = T)
 ```
 
 The top panel shows the different species size spectrum at the last time step of the simulation while the bottom panel shows the abundance per species through time.
-These plots show that species do not coexist and several go extinct. This is because there was no external density dependence ($R_{max}$ is set at $Inf$) and the largest species (Cod and Saithe) are out-competing the rest.
+These plots show that all of the species but three have collapsed. This is because there was no external density dependence ($R_{max}$ is set at $Inf$) and the largest species (Cod and Saithe) have outcompeted all of the rest.
 
 ## Step 1. Obtain the time-averaged data (e.g. catches or biomasses for each species) and the time-averaged fishing mortalty inputs (e.g. from stock assessments).
 
 In this section you will:
 
 - Download fisheries data and process them in a format comparable to the model output
-
-- Visualise the data
 
 
 The following .csv are extracted from the ICES database using "data/getICESFishdata_param.R". Fishing data is averaged over 2014-2019 as it's a relatively stable period in catches.
@@ -430,27 +394,33 @@ plot_dat <- reshape2::melt(plot_dat,"Species")
 
 
 ```
-
 RF: Dab and Gurnard have some issues
 
-## Step 2. Guessing the maximum recruitment 
+## Step 2. Calibrate the carrying capacity of the background resource spectrum, $\kappa$, at steady state 
 
 In this section you will:
 
-- guess reasonable $R_{max}$ values which will stop out-competition from a few species
+- guess reasonable $erepro$ and $R_{max}$ values which will stop out-competition from a few species
 
-- take a look how it affects the density dependence of each species and their predicted yield
+- vary $\kappa$ values until you reach coexistence for all species
+
+- check species' growth curve, which is influenced by $\kappa$ to see if it diverged from the Von Bertalanffy curves (data poor case) or growth data (data rich case)
+
+
 
 
 
 ```{r step 2 - guessing coexistence, warning=F, message=F}
+
+# the fishing mortality rates are already stored in the param object as
+params_uncalibrated@species_params$catchability
 
 # let's start again and replace with the initial pre-calibration "guessed" Rmax 
 params_guessed <- params_uncalibrated
 # penalise the large species with higher density dependence
 params_guessed@species_params$R_max <- params_guessed@resource_params$kappa*params_guessed@species_params$w_inf^-1
 # and reduce erepro
-# params_guessed@species_params$erepro <- 1e-3
+params_guessed@species_params$erepro <- 1e-3
 
 params_guessed <- setParams(params_guessed)
 # run with fishing
@@ -460,45 +430,192 @@ plotSummary(sim_guessed, short = T)
 
 ```
 
-The ecosystem looks way better. Saithe's largest individuals are having a hard time, but at least species coexist.
+Here, Sprat's biomass is orders of magnitude lower than the other species and so are Saithe's largest individuals, but at least species coexist.
 
-```{r step 2 - RDI/RDD}
+In `mizerExperiental`, the `projectToSteady()` function looks for a biomass equilibrium state for a set of intial parameters (RF: is that right?). Let's see how it behaves with our model: 
 
-  plot_dat <- as.data.frame(getRDI(sim_guessed@params)/getRDD(sim_guessed@params))
-  plot_dat$species <- factor(rownames(plot_dat),sim_guessed@params@species_params$species)
-  colnames(plot_dat)[1] <- "ratio"
+```{r step 2 - project to Steady, message = F, warning = F}
 
-ggplot(plot_dat) +
-  geom_bar(aes(x = species, y = ratio, fill = species),stat="identity") +
-  scale_fill_manual(name = "Species", values = sim_guessed@params@linecolour) +
-  scale_y_continuous(name = "RDI/RDD", trans = "log10") +
-  scale_x_discrete(name = "Species") +
-   theme(panel.background = element_rect(fill = "white", color = "black"),
-        legend.position = "none")
+## compare with Gustav's projectToSteady
+params_steady <- projectToSteady(params_guessed, t_max = 100, return_sim = F)
+sim_steady <- project(params_steady, t_max = 300, effort =1)
+plotSummary(sim_steady, short = T)
+
+# zoom on the size spectrum
+plotSpectra(sim_steady,power=2,total = T,wlim = c(.1,NA))
 
 
-getRDI(sim_guessed@params)/getRDD(sim_guessed@params)
+```
+Species are coexisting (but Sprat's still low). This is in part because we applied a stronger $R_{max}$ effect for larger species. You can play with the above parameters but but it would take a lot of trial an error to achieve the right combination to get the biomass or catches similar to the observations.
 
+We could explore the effects further using Rshiny app, where we also have a plot of the biomass or catch data. First let's look at the basic diagnostics and tune $\kappa$ and $erepro$ to make sure the feeding levels are high enough for each species and that biomasses coexist. 
 
+RF: Rshiny section disabled for pdf
+
+```{r step 2 r-shiny, eval = F, cache = F, include = F}
+# Optional
+# adjust Rmax and/or reproductive efficiency to examine whether improved steady state is achievable that way
+library(shiny) # no need if runtime = shiny is in the YAML
+# runApp("shiny-equilibrium")
+# is there a way to save the final chosen values?
+params_shiny <- params_guessed
+
+shinyApp(
+
+  ui=fluidPage(
+  
+  # Application title
+  titlePanel("North Sea Model Example"),
+  
+  fluidRow(
+    column(4, wellPanel(
+       sliderInput("kappa", "log10 Resource Carrying Capacity:", min = 8, max = 12, value = 10.7,
+                   step = 0.1),
+    #   sliderInput("Rmax", "log10 Maximum Recruitment:", min = 1, max = 12, value = 12,
+    #              step = 0.1),
+       sliderInput("erepro", "log10 Reproductive Efficiency:", min = -8, max = 1, value = -3,
+                   step = 0.1)
+          )),
+    column(6,
+           plotOutput("distPlot", width = 600, height = 600)
+    ))
+     
+  
+    
+  ),
+  
+  server = function(input, output) {
+   
+  output$distPlot <- renderPlot({
+    # set up params using values given, need check and change parameter values so units work in days units 
+    params_shiny@species_params$erepro <- rep(10^input$erepro,12)
+   # params@species_params$Rmax <- rep(10^input$Rmax,12)
+    params_shiny <- setParams(params_shiny,kappa=10^input$kappa)
+    # run without fishing
+    sim_shiny <- project(params_shiny, effort = 1, t_max = 100)
+    plot(sim_shiny)
+     })
+
+},
+
+  options = list(height = 500)
+)
 
 
 ```
 
+Rshiny makes it easier to fine tune one parameter at a time, but we need to make some species-specific adjustments.
 
-Is the physiological recruitment, $RDI$, much higher than the realised recruitment, $RDD$? High $RDI/RDD$ ratio indicates strong density dependence, meaning that the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. If $RDI/RDD$ is too high, the efficiency of reproduction ($erepro$) can be lowered to ensure species do not outcompete others or or over-resilient to fishing. The largest species that were the most limited by our new $R_{max}$ do not show a strong density dependence. The medium-sized species are the most affected here.
+The shiny app helps with understanding the model but it is tricky to arrive at the best fit especially if we want to change several species parameter combinations at a time.
 
+However, varying $\kappa$ will affect the species' growth curve, we need to check the modelled growth curves agaisnt the “observed” von Bertlanffy growth curves in case varying $\kappa$ divert too much the emergent growth curves.
 
+```{r step 2 - growth curves | function, include = F }
 
+# This function is going to be integrated in sizespectrum/mizer
+plotGrowthCurves <- function (object, 
+                              species, 
+                              max_age = 20, 
+                              percentage = FALSE, 
+                              species_panel = FALSE,
+                              highlight = NULL) 
+{
+    if (is(object, "MizerSim")) {
+        params <- object@params
+        t <- dim(object@n)[1]
+        params@initial_n[] <- object@n[t, , ] # Designed to work also with single species
+        params@initial_n_pp <- object@n_pp[t, ]
+    } else if (is(object, "MizerParams")) {
+        params <- validParams(object)
+    }
+    if (missing(species)) {
+        species <- params@species_params$species
+    }
+    ws <- getGrowthCurves(params, species, max_age, percentage)
+    plot_dat <- reshape2::melt(ws)
+    plot_dat$Species <- factor(plot_dat$Species, params@species_params$species)
+    plot_dat$legend <- "model"
+    
+    # creating some VB
+    if (all(c("a", "b", "k_vb") %in% names(params@species_params))) 
+    {
+        VBdf <- data.frame("species" = params@species_params$species, "w_inf" = params@species_params$w_inf, "a" = params@species_params$a, "b" = params@species_params$b, "k_vb" = params@species_params$k_vb, "t0" = 0) 
+        VBdf$L_inf <- (VBdf$w_inf / VBdf$a)^(1/VBdf$b)
+        plot_dat2 <- plot_dat
+        plot_dat2$value <- apply(plot_dat,1,function(x, VBdf){VBdf[which(VBdf$species == x[1]),]$a * 
+                (VBdf[which(VBdf$species == x[1]),]$L_inf * (1 - exp(-VBdf[which(VBdf$species == x[1]),]$k_vb * 
+                                                                         (as.numeric(x[2]) - VBdf[which(VBdf$species == x[1]),]$t0))))^VBdf[which(VBdf$species == x[1]),]$b}, VBdf)
+        plot_dat2$legend <- "von Bertalanffy"
+        plot_dat <- rbind(plot_dat,plot_dat2)
+    }
+    
+    p <- ggplot(filter(plot_dat, legend == "model")) + geom_line(aes(x = Age, y = value, 
+                                                                     colour = Species, linetype = Species, size = Species))
+    y_label <- if (percentage) 
+        "Percent of maximum size"
+    else "Size [g]"
+    linesize <- rep(0.8, length(params@linetype))
+    names(linesize) <- names(params@linetype)
+    linesize[highlight] <- 1.6
+    p <- p + scale_x_continuous(name = "Age [Years]") + 
+        scale_y_continuous(name = y_label) + 
+        scale_colour_manual(values = params@linecolour) + 
+        scale_linetype_manual(values = params@linetype) + 
+        scale_size_manual(values = linesize)
+    
+    # starting cases now
+    if(!percentage)
+    {
+        
+        if (length(species) == 1) {
+            idx <- which(params@species_params$species == species)
+            w_inf <- params@species_params$w_inf[idx]
+            p <- p + geom_hline(yintercept = w_inf, colour = "grey") + 
+                annotate("text", 0, w_inf, vjust = -1, label = "Maximum")
+            w_mat <- params@species_params$w_mat[idx]
+            p <- p + geom_hline(yintercept = w_mat, linetype = "dashed", colour = "grey") + 
+                annotate("text", 0, w_mat, vjust = -1, label = "Maturity")
+            if ("von Bertalanffy" %in% plot_dat$legend) 
+                p <- p + geom_line(data = filter(plot_dat, legend == "von Bertalanffy"), aes(x = Age, y = value))
+            
+        } else if(species_panel) # need to add either no panel if no param for VB or create a panel without VB
+        {
+            p <- ggplot(plot_dat) +
+                geom_line(aes(x = Age, y = value , colour = legend)) +
+                scale_x_continuous(name = "Age [years]") +
+                scale_y_continuous(name = "Size [g]") +
+                geom_hline(aes(yintercept = w_mat),
+                           data = tibble(Species = object@params@species_params$species[],
+                                         w_mat = object@params@species_params$w_mat[]),
+                           linetype = "dashed",
+                           colour = "grey") +
+                geom_hline(aes(yintercept = w_inf),
+                           data = tibble(Species = object@params@species_params$species[],
+                                         w_inf = object@params@species_params$w_inf[]),
+                           linetype = "solid",
+                           colour = "grey") +
+                facet_wrap(~Species, scales = "free_y")
+            
+        }
+    }
+    return(p)
+}
+```
 
-```{r step 2 - observed/predicted catches}
+```{r step 2 - growth curves | results}
+# All emergent and observed growth curves as pannels
+plotGrowthCurves(sim_guessed, species_panel = T)
 
-plotPredObsYield(sim_guessed,catchAvg$Catch_1419_tonnes) 
+# All emergent growth curves together
+plotGrowthCurves(sim_guessed, percentage = T)
+
+# One by one observed vs emergent
+plotGrowthCurves(sim_guessed, species = "Cod")
 
 ```
 
 
-This plot show the ratio between observed yield (from the data loaded earlier) and the yield recreated in our model. Only one Sole matches at the moment.
-
+To conclude this section, we are going to choose some values that enable the most species to coexist as a starting point for optimisation. Note we won't vary $erepro$ at the same time as $R_{max}$ (they depend on each other). However we will use the value of $erepro$ selected from the shiny app.
 
 ## Step 3. Calibrate the maximum recruitment
 
@@ -572,17 +689,17 @@ getError <- function(vary,params,dat,env=state,data_type="catch", tol = 0.1,time
 
 
 # we need 12 Rmaxs, log10 scale
-vary <- log10(params_guessed@species_params$R_max)
+vary <- log10(params_steady@species_params$R_max)
 #vary<-runif(10,3,12) # or use completley made up values, same for each species test for effects of initial values
 
 ## set up the enviornment to keep the current state of the simulations 
 state <- new.env(parent = emptyenv())
-state$params <-  params_guessed
+state$params <-  params_steady
 
-#catchAvg <-read.csv("data/time-averaged-catches.csv") # only that one is used at the moment | catches are estimated from fMatW
+catchAvg <-read.csv("data/time-averaged-catches.csv") # only that one is used at the moment | catches are estimated from fMatW
 
 ## test it
-err<-getError(vary = vary, params = params_guessed, dat = catchAvg$Catch_1419_tonnes)
+err<-getError(vary = vary, params = params_steady, dat = catchAvg$Catch_1419_tonnes)
 # err<-getError(vary,params,dat=rep(100,12),data_type="biomass")
 err
 ```
@@ -605,7 +722,7 @@ params_optim <- params_guessed
 vary <-  log10(params_optim@species_params$R_max)
 
 
-# params_optim@resource_params$kappa<-3.2e11 # better kappa estimated from Rshiny
+params_optim@resource_params$kappa<-3.2e11 # better kappa estimated from Rshiny
 params_optim<-setParams(params_optim)
 
 noCores <- detectCores() - 1 # keep a spare core
@@ -629,9 +746,10 @@ saveRDS(optim_result,"optim_para_result.RDS")
 
 
 ```{r step3 - results, message=FALSE,warning=FALSE}
-# if previous block was not evaluated
+
+# if previous block not evaluated | have some issue enabling "runtime:shiny" and loading .csv somehow
 params_optim <- params_guessed
-# params_optim@resource_params$kappa<-3.2e11 # old value (keeping it for now cause it works)
+params_optim@resource_params$kappa<-3.2e11 
 
 optim_result <- readRDS("optim_para_result.RDS")
 # optim values:
@@ -641,250 +759,106 @@ params_optim@species_params$R_max <- 10^optim_result$par
 params_optim <-setParams(params_optim)
 sim_optim <- project(params_optim, effort = 1, t_max = 100, dt=0.1,initial_n = sim_guessed@n[100,,],initial_n_pp = sim_guessed@n_pp[100,])
 saveRDS(sim_optim,"optim_para_sim.RDS")
-plotSummary(sim_optim, short = T)
-plotPredObsYield(sim_optim,catchAvg$Catch_1419_tonnes) 
+plotSummary(sim_optim)
 ```
 
-Calibrating for best observed/predicted yield makes one species (Sprat) show signs of collapse. We need to look at other parameters to get the community to coexist again.
+## Step 4. Check the level of density dependence. 
 
-
-## Step 4. Calibrating the growth
 
 In this section you will:
 
-- look at the growth curves of each species
+- check if the $RDI/RDD$ ratio and infer consequences on the ecosystem
 
-- tweak the $\kappa$ parameter to adjust the growth curves
-
-```{r step 4 - growth curves prior}
-
-plotGrowthCurves(sim_optim, species_panel = T)
-
-# Ken's comment: plotGrowthCurves. Legend should be “model”, “Observed”. Need to discuss about that since we need to change the plot in Mizer then
-
-```
-
-Most species have a slower growth than what's observed in the wild. $\kappa$, which is the carrying capacity of the background spectrum will affect the food availability and therefore the growth rate (more food means faster growth).
-
-```{r step 4 - feeding level}
+```{r step 4}
 
 
-plotFeedingLevel(sim_optim, include_critical = F)
 
-```
 
-Feeding level does not look bad, but let's try to increase it to allow Sprat to survive
-
-We can explore the effects of $\kappa$ using Rshiny app. First let's look at the basic diagnostics and tune $\kappa$ to make sure the feeding levels are high enough for each species and that biomasses coexist. 
-
-RF: Rshiny section disabled for pdf
-
-```{r step 4 r-shiny, eval = F, cache = F, include = F}
-# Optional
-# adjust Rmax and/or reproductive efficiency to examine whether improved steady state is achievable that way
-library(shiny) # no need if runtime = shiny is in the YAML
-# runApp("shiny-equilibrium")
-# is there a way to save the final chosen values?
-params_shiny <- params_optim
-
-shinyApp(
-
-  ui=fluidPage(
+  plot_dat <- as.data.frame(getRDI(sim_optim@params)/getRDD(sim_optim@params))
+  plot_dat$species <- factor(rownames(plot_dat),sim_optim@params@species_params$species)
+  colnames(plot_dat)[1] <- "ratio"
+  plot_dat$w_inf <- as.numeric(sim_optim@params@species_params$w_inf)
   
-  # Application title
-  titlePanel("North Sea Model Example"),
+  # trying to have bars at their w_inf but on a continuous scale
+  plot_dat$label <- plot_dat$species
+  plot_dat2 <- plot_dat
+  plot_dat2$ratio <- 0
+  plot_dat2$label <- NA
+  plot_dat <- rbind(plot_dat,plot_dat2)
   
-  fluidRow(
-    column(4, wellPanel(
-       sliderInput("kappa", "log10 Resource Carrying Capacity:", min = 8, max = 12, value = 11,
-                   step = 0.1),
-    #   sliderInput("Rmax", "log10 Maximum Recruitment:", min = 1, max = 12, value = 12,
-    #              step = 0.1),
-       sliderInput("erepro", "log10 Reproductive Efficiency:", min = -8, max = 1, value = -2,
-                   step = 0.1)
-          )),
-    column(6,
-           plotOutput("distPlot", width = 600, height = 600)
-    ))
-     
-  
-    
-  ),
-  
-  server = function(input, output) {
-   
-  output$distPlot <- renderPlot({
-    # set up params using values given, need check and change parameter values so units work in days units 
-    params_shiny@species_params$erepro <- rep(10^input$erepro,12)
-   # params@species_params$Rmax <- rep(10^input$Rmax,12)
-    params_shiny <- setParams(params_shiny,kappa=10^input$kappa)
-    # run without fishing
-    sim_shiny <- project(params_shiny, effort = 1, t_max = 100)
-    plot(sim_shiny)
-     })
-
-},
-
-  options = list(height = 500)
-)
-
-
-```
-
-Increasing $\kappa$ to $10^{11.5}$ (from $10^{11}$) allows coexistence between each species. Let's adjust this in the parameters and look at the growth curves again.
-
-```{r step 4 - kappa tweak}
-# updating param parameters
-params_optim@resource_params$kappa<- 10^(11.5)
-params_optim <-setParams(params_optim)
-
-sim_optim <- project(params_optim, effort = 1, t_max = 100, dt=0.1)#,initial_n = sim_optim@n[100,,],initial_n_pp = sim_optim@n_pp[100,])
-saveRDS(sim_optim,"optim_para_sim2.RDS")
-
-plotGrowthCurves(sim_optim, species_panel = T)
-
-# keep last time step of sim_optim saved to not have to get Sprat coming back from the deads every time
-params_optim@initial_n <- sim_optim@n[dim(sim_optim@n)[1],,]
-params_optim@initial_n_pp <- sim_optim@n_pp[dim(sim_optim@n_pp)[1],]
-
-```
-
-Growth curves look closer to the observed values.
-
-
-## Step 5. Calibrate the recruitment with eRepro.
-
-In this section you will:
-
-- Look at effect of $erepro$ on the reproductive outputs
-
-- Check what impact erepro has on the $F_{msy}$
-
-
-$eRepro$ represents the energy conversion efficiency between energy allocated to reproduction and the actual spawn. Lowering $erepro$ biologically means higher egg mortality rate or wasteful energy invested into gonads. For example, $eRepro$ is currently set to $0.01$ meaning, that for every one $g$ of mass allocated to reproduction, $0.1g$ will be used as spawn recruitment, the rest is lost. This coefficient is applied before any density-dependence requirement. Let's use Rshiny to see how varying $eRepro$ influences the ecosystem.
-
-
-
-```{r step 5 r-shiny, eval = F, cache = F, include = F}
-# Optional
-# adjust Rmax and/or reproductive efficiency to examine whether improved steady state is achievable that way
-library(shiny) # no need if runtime = shiny is in the YAML
-# runApp("shiny-equilibrium")
-# is there a way to save the final chosen values?
-params_shiny <- params_optim
-
-shinyApp(
-
-  ui=fluidPage(
-  
-  # Application title
-  titlePanel("North Sea Model Example"),
-  
-  fluidRow(
-    column(4, wellPanel(
-       sliderInput("kappa", "log10 Resource Carrying Capacity:", min = 8, max = 12, value = 11.3,
-                   step = 0.1),
-    #   sliderInput("Rmax", "log10 Maximum Recruitment:", min = 1, max = 12, value = 12,
-    #              step = 0.1),
-       sliderInput("erepro", "log10 Reproductive Efficiency:", min = -8, max = 1, value = -2,
-                   step = 0.1)
-          )),
-    column(6,
-           plotOutput("distPlot", width = 600, height = 600)
-    ))
-     
-  
-    
-  ),
-  
-  server = function(input, output) {
-   
-  output$distPlot <- renderPlot({
-    # set up params using values given, need check and change parameter values so units work in days units 
-    params_shiny@species_params$erepro <- rep(10^input$erepro,12)
-   # params@species_params$Rmax <- rep(10^input$Rmax,12)
-    params_shiny <- setParams(params_shiny,kappa=10^input$kappa)
-    # run without fishing
-    sim_shiny <- project(params_shiny, effort = 1, t_max = 100)
-    plot(sim_shiny)
-     })
-
-},
-
-  options = list(height = 500)
-)
-
-
-```
-
-
-Now let's take a look at the current $F_msy$ per species. To do so we need to set up an ecosystem with one gear per species and vary one gear intensity at a time while the other gear stay constant (default effort value of one).
-
-```{r step 5 - Fmsy | data crunching, eval=F}
-
-# make one gear per species so we can bary the effort per species
-gear <- gear_params(params_optim)
-gear$gear <- params_optim@species_params$species
-gear_params(params_optim) <- gear
-
-catchability <- params_optim@species_params$catchability
-
-# we want to vary effort value so we get a scale from 0 to 1 of effort * catchability per species
-tic()
-plot_dat <- NULL
-for(iSpecies in 1:dim(params_optim@species_params)[1])
-{
-  # determine effort range
-  effortMax <- round(1.5/catchability[iSpecies],1)+.1
-  SpDat <- NULL
-  for(iEffort in seq(0,effortMax,.1))
-  {
-    effort_vec <- rep(1,dim(params_optim@species_params)[1]) # all effort set to one
-    effort_vec[iSpecies] <- iEffort # except that one which varies
-    
-    tempSim <- project(params_optim, effort = effort_vec, t_max = 30)
-   #catch
-  yieldDat <- getYield(tempSim)
-  SpDat <- rbind(SpDat,c(yieldDat[dim(yieldDat)[1],iSpecies],iEffort))
-  }
-  SpDat <- as.data.frame(SpDat)
-  SpDat$species <- params_optim@species_params$species[iSpecies]
-  SpDat$V2 <- SpDat$V2*catchability[iSpecies] # so V2 is effort * catchability
-plot_dat <- rbind(plot_dat,SpDat)
-    
-}
-toc()
-colnames(plot_dat) <- c("yield","effort","species")
-
-saveRDS(plot_dat, "Fmsy.rds")
-```
-
-```{r step 5 - Fmsy | plots}
-
-plot_dat <- readRDS("Fmsy.rds")
-
 ggplot(plot_dat) +
-geom_line(aes(x = effort , y = yield, color = species))+
-  facet_wrap(species~., scales = "free") +
-  scale_x_continuous(limits= c(0,1.5))+#, limits = c(1e10,NA))+
-  scale_y_continuous(trans = "log10") +
-  scale_color_manual(name = "Species", values = params_optim@linecolour) +
-    theme(legend.position = "bottom", legend.key = element_rect(fill = "white"))
+    geom_line(aes(x = w_inf, y = ratio, color = species), size = 20, alpha = .8) +
+    geom_text(aes(x = w_inf, y = ratio, label = label),position = position_stack(vjust = 0.5), angle = 30)+
+    scale_color_manual(name = "Species", values = sim_optim@params@linecolour) +
+    scale_y_continuous(name = "R0") +
+    scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+    theme(legend.position = "none") 
+
+getRDI(sim_optim@params)/getRDD(sim_optim@params)
 
 
+# seems like there is little density dependence 
 
+# # if needed change erepro & plug back into model
+ # params@species_params$erepro[] <-1e-3
+ # params <- setParams(params)
+ # sim <- project(params, effort = 1, t_max = 500, dt=0.1)
+ # plot(sim)
+
+```
+
+Is the physiological recruitment, $RDI$, much higher than the realised recruitment, $RDD$? High $RDI/RDD$ ratio indicates strong density dependence.
+
+
+## Step 5. Verify the model after the above step by comparing the model with data. 
+
+Eg. species biomass or abundance distrubtions, feeding level, naturality mortality, growth, vulnerablity to fishing (fmsy) and catch, diet composition... Many handy functions for plotting these are available here: https://sizespectrum.org/mizer/reference/index.html
+
+
+```{r step 5 - diagnostic functions, include = FALSE}
+
+# hopefully all of this will go on sizespectrum/mizer, in the meantime
+
+plotPredObsYield <-function(sim,dat){
+## check obs vs. predicted yield
+#sim<-newsim
+pred_yield <-melt(getYield(sim)[100,]/1e6)
+pred_yield$obs <- dat
+pred_yield$species <-row.names(pred_yield)
+
+p <- ggplot() + # plot predicted and observed yields
+        geom_point(data = pred_yield, 
+            aes(x = log10(value), y = log10(obs), color = species)) +
+  scale_color_manual(values = sim_optim@params@linecolour) +
+   # plot optimal fit line
+        geom_abline(color = "black", slope = 1, intercept = 0) + 
+  xlab("log10 Predicted Yield") + 
+  ylab("log10 Observed Yield") #+ 
+ # scale_fill_manual(values = wes_palette(12, "Zissou")) 
+return(p)
+} 
+
+plotDiet2 <- function (object, species, xlim = c(1,NA)) 
+{
+    params <- validParams(object)
+    if (is.integer(species)) {
+        species <- params@species_params$species[species]
+    }
+    diet <- getDiet(params)[params@species_params$species == 
+        species, , ]
+    prey <- dimnames(diet)$prey
+    prey <- factor(prey, levels = rev(prey))
+    plot_dat <- data.frame(Proportion = c(diet), w = params@w, 
+        Prey = rep(prey, each = length(params@w)))
+    plot_dat <- plot_dat[plot_dat$Proportion > 0, ]
+    ggplot(plot_dat) + geom_area(aes(x = w, y = Proportion, fill = Prey)) + 
+        scale_x_log10(limits = xlim) + labs(x = "Size [g]") + scale_fill_manual(values = sim_optim@params@linecolour)
+}
 
 ```
 
 
-## Step 6. Calibrate food competition (rPP)
-
-
-## Step 7. Diagnostic plot
-
-
-
-```{r step 5 - plots, message = F, warning=F, eval = F}
+```{r step 5 - plots, message = F, warning=F}
 
 plotSummary(sim_optim)
 
@@ -896,7 +870,7 @@ plotDiet2(sim_optim@params,"Cod")
 plotGrowthCurves(sim_optim, species_panel = T)
 ```
 
-```{r step5 - plotly, eval = F}
+```{r step5 - plotly}
 # interactive plots / won't be displayed in pdf
 plotlyBiomass(sim_optim)
 plotlySpectra(sim_optim)
@@ -916,9 +890,58 @@ plotlyFMort(sim_optim)
 ```
 
 
+Now that our model is calibrated, let's take a look at the $F_{msy}$
+
+```{r step 5 - msy, warning=F}
+
+# need panel plots (per species) of yield at equilibrium (per million) vs effort * catchability
+
+# need catch values / biomass values for different efforts
+# sim <- readRDS("~/HowToMizer/optim_para_sim.RDS")
+
+sim <- sim_optim
+# plot_datFisheries <-NULL # df that gets biomass/yield/effort/growth
+# effortSeq <- seq(0,7,.1) 
+# # trade-off -> some species have low catchability so need to run the effort really high to get them to drop in biomass 
+# # but at the same time this can make some species go extinct and crash some functions
+# for(iEffort in effortSeq)
+# {
+#   tempSim <- project(sim, effort = iEffort,t_max = 30)
+#   #biomass
+#   bm <- getBiomassFrame(tempSim)
+#   myDat <- filter(bm, Year == max(unique(bm$Year)))
+#   #catch
+#   yieldDat <- getYield(tempSim)
+#   myDat$yield <- yieldDat[dim(yieldDat)[1],]
+#   myDat$Year <- NULL
+#   myDat$effort <- iEffort
+#   #growth
+#   growth_dat <- getEGrowth(tempSim@params, n = tempSim@n[dim(tempSim@n)[1],,], n_pp = tempSim@n_pp[dim(tempSim@n_pp)[1],])
+#   myDat$growth <- apply(growth_dat,1,sum)
+#   plot_datFisheries <- rbind(plot_datFisheries,myDat)
+#   #fisheries
+#   
+# }
+# # adjust effort > effort * catchability
+# plot_datFisheries$effort <- plot_datFisheries$effort*rep(sim@params@species_params$catchability,length(effortSeq))
+# saveRDS(plot_datFisheries, "Fmsy.rds")
+
+plot_datFisheries <- readRDS("Fmsy.rds")
+
+# fishing mortality vs yield
+ggplot(plot_datFisheries) +
+geom_line(aes(x = effort, y = yield, color = Species))+
+  facet_wrap(Species~., scales = "free") +
+  scale_x_continuous(limits= c(0,1))+#, limits = c(1e10,NA))+
+  scale_y_continuous(trans = "log10") +
+  scale_color_manual(name = "Species", values = sim@params@linecolour) +
+    theme(legend.position = "bottom", legend.key = element_rect(fill = "white"))
 
 
 
+```
 
+
+### Step 6. The final verification step is to force the model with time-varying fishing mortality to assess whether changes in time series in biomassess and catches capture observed trends. The model will not capture all of the fluctuations from environmental processes ( unless some of these are included), but should match the magnitude and general trend in the data. We explore this in Example # 2 - Changes through time.
 
 
