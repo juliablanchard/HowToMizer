@@ -256,7 +256,7 @@ for(iSpecies in SpIdx)
                 myVar <- apply(myMat,1,sum,na.rm=T)
                 myVar[which(myVar == 0)] <- NA # summing NA will do this, keeping the NA in place
             },
-            N.pout = {myVar = N.pout_sumtab[[1]]$landings}, # N.pout does not have catches data, just landings (and no discards)
+            N.pout = {myVar = N.pout_sumtab[[1]]$SSB}, # N.pout does not have catches data, just landings (and no discards)
             Herring = {myVar = Herring_sumtab[[1]]$SSB},
             Dab = {myVar = Dab_sumtab[[1]]$SSB},
             Whiting = {myVar = Whiting_sumtab[[1]]$SSB},
