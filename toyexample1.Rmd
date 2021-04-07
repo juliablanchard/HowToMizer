@@ -3,9 +3,9 @@ title: "Example #1: Calibration Protocol - Time-Averaged"
 author: Julia L. Blanchard
 date: July 2020
 place: Hobart, Australia
-output: 
-  # html_document: default
-  pdf_document: default
+output:
+  html_document: default
+  # pdf_document: default
 always_allow_html: true
 #runtime: shiny
 ---
@@ -39,7 +39,6 @@ As a starting point, we will estimate these parameters as a means of fitting the
 
 
 
-
 ### A Simple Protocol for Multispecies Model Calibration
 
 We will adapt the "recipe" for calibration in Jacobsen et al 2014 (see supp. mat.) and Blanchard et al (2014), into the following steps:
@@ -52,11 +51,11 @@ We will adapt the "recipe" for calibration in Jacobsen et al 2014 (see supp. mat
 
 3. Calibrate the maximum recruitment, $R_{max}$ with optimisation, by minimising the error between observed and estimated catches. 
 
-4. Calibrate growth by changing the carrying capacity of the background resource spectrum ($\kappa$)
+4. Refine the calibration of the recruitment via $eRepro$ by hand and check that the species' $F_{msy}$ are reasonable.
 
-5. Calibrate recruitment via $eRepro$
+5. Calibrate growth by changing the carrying capacity of the background resource spectrum ($\kappa$).
 
-6.Calibrate the food competition
+6. Calibrate the food competition
 
 
 ## Step 0. Run the model with the chosen species-specific parameters.
@@ -88,6 +87,8 @@ library(shiny)
 library(shinyWidgets)
 library(parallel)
 library(optimParallel)
+library(ggrepel)
+
 
 
 # loading North Sea data
@@ -95,7 +96,11 @@ nsParams <- read.csv("data/nsparams.csv")[,-1]
 
 # This data frame already has Rmax values, let's remove them to calibrate them again later
 nsParams[,"r_max"] <- Inf
-nsParams <- nsParams[order(nsParams$w_inf),] # ordering by asymptotic size for color gradient
+# ordering by asymptotic size for color gradient
+nsParams <- nsParams[order(nsParams$w_inf),] 
+# need to order the interaction matrix as well | it's so ugly please help
+inter <- select(as.data.frame(inter),nsParams$species)
+inter <- as.matrix(select(as.data.frame(t(inter)),nsParams$species))
 
 # If you want to make it less multi-species and more trait-based model
 # nsParams[,"beta"] <-100
@@ -117,6 +122,8 @@ g_legend<-function(a.gplot){
   legend <- tmp$grobs[[leg]]
   return(legend)}
 
+# arrow to show asymptotic size
+
 plotSummary <- function (x, y, power = 2, wlim = c(.1,NA), short = F, ...) 
 {
   xlim = c(NA,10^log10(max(x@params@species_params$w_inf)))
@@ -126,29 +133,36 @@ plotSummary <- function (x, y, power = 2, wlim = c(.1,NA), short = F, ...)
   
   p1 <- plotSpectra(x, power = power, wlim = wlim, ...)
   p1 <- p1  + scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]") +
-             theme(axis.title.x=element_blank(),
-                    axis.text.x=element_blank(),
-                    axis.ticks.x=element_blank(),
-                   text = element_text(size=font_size),
-                    legend.position = "bottom", legend.key = element_rect(fill = "white"))+
-    guides(color = guide_legend(nrow=2))
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          text = element_text(size=font_size),
+          panel.background = element_blank(),
+          panel.grid.minor = element_line(color = "gray"),
+          legend.position = "right", legend.key = element_rect(fill = "white"))
+  # guides(color = guide_legend(nrow=2))
   
   mylegend<-g_legend(p1) # save the legend
-    p1 <- p1 + theme(legend.position = "none") # now remove it from the plot itself
+  p1 <- p1 + theme(legend.position = "none") # now remove it from the plot itself
   
-      p7 <- plotBiomass(x)
+  p7 <- plotBiomass(x)
   p7 <- p7 + theme(legend.position = "none",
-                   text = element_text(size=font_size),)
+                   text = element_text(size=font_size),
+                   panel.background = element_blank(),
+                   panel.grid.minor = element_line(color = "gray"),)
+  # theme_bw()
   
     if(short)
 {
       p1 <- p1 +theme(axis.title.x=element_text(),
                     axis.text.x=element_text(),
                     axis.ticks.x=element_line())
-  p10 <- plot_grid(p1, p7, mylegend,  
-                   rel_heights = c(3,3,1),
-                   # rel_widths = c(2,1),
-           ncol = 1, align = "v", axis = "l")
+
+      leftCol <- plot_grid(p1,p7,
+                           ncol = 1, align = "v", axis = "l")
+      p10 <- plot_grid(leftCol, mylegend,
+                       rel_widths = c(6,1),
+                       ncol = 2)
   
 } else
 {
@@ -266,37 +280,60 @@ winLim <- c(min(plot_dat$obs,plot_dat$value), max(plot_dat$obs,plot_dat$value))
 
 p <- ggplot(plot_dat) + # plot predicted and observed yields
   geom_point(aes(x = value, y = obs, color = Species, size = Species)) +
+  geom_text_repel(aes(x = value, y = obs, label = Species), hjust = 0, nudge_x = 0.05)+
   scale_size_manual(values = w_inf) +
   scale_color_manual(values = sim@params@linecolour) +
   geom_abline(color = "black", slope = 1, intercept = 0, linetype = "dashed", alpha = .5) + 
   scale_x_continuous(name = "log10 Predicted Yield", limits = winLim) + 
   scale_y_continuous(name = "log10 Observed Yield", limits = winLim) +
-  theme(legend.position = "bottom", legend.key = element_rect(fill = "white"))
+  theme(legend.position = "none", legend.key = element_rect(fill = "white"),
+        panel.background = element_blank(), panel.grid.minor = element_line(color = "gray"))
 
 if(returnData) return(plot_dat) else return(p)
 } 
 
-plotDiet2 <- function (sim, species, xlim = c(1,NA)) 
+
+plotDiet2 <- function (sim, species = NULL, xlim = c(1,NA), returnData = F) 
 {
   params <- sim@params
-    if (is.integer(species)) {
-        species <- params@species_params$species[species]
-    }
+    # if (is.integer(species)) {
+    #     species <- params@species_params$species[species]
+    # }
   
 
-    diet <- getDiet(params)[params@species_params$species == 
-        species, , ]
-    prey <- dimnames(diet)$prey
-    prey <- factor(prey, levels = rev(prey))
-    plot_dat <- data.frame(Proportion = c(diet), w = params@w, 
-        Prey = rep(prey, each = length(params@w)))
-    plot_dat <- plot_dat[plot_dat$Proportion > 0, ]
-    ggplot(plot_dat) + geom_area(aes(x = w, y = Proportion, fill = Prey)) + 
-        scale_x_log10(limits = xlim) + labs(x = "Size [g]") + 
-      scale_fill_manual(values = sim@params@linecolour) +
-      ggtitle(species)
+    # diet <- getDiet(params)[params@species_params$species == 
+    #     species, , ]
+    # prey <- dimnames(diet)$prey
+    # prey <- factor(prey, levels = rev(prey))
+    # plot_dat <- data.frame(Proportion = c(diet), w = params@w, 
+    #     Prey = rep(prey, each = length(params@w)))
+    # plot_dat <- plot_dat[plot_dat$Proportion > 0, ]
+    # 
+    # ggplot(plot_dat) + geom_area(aes(x = w, y = Proportion, fill = Prey)) + 
+    #     scale_x_log10(limits = xlim) + labs(x = "Size [g]") + 
+    #   scale_fill_manual(values = sim@params@linecolour) +
+    #   ggtitle(species)
+    
+    
+    diet <- getDiet(params)
+    plot_dat <- melt(diet)
+    plot_dat <- plot_dat[plot_dat$value > 0, ]
+    colnames(plot_dat) <- c("Predator", "size", "Prey", "Proportion")
+    
+    if(is.null(species)) p <- ggplot(plot_dat) + facet_wrap(.~Predator, scales = "free") else p <- ggplot(filter(plot_dat, Predator == species))
+    
+  p <- p +
+      geom_area(aes(x = size, y = Proportion, fill = Prey))+
+       scale_x_continuous(limits = c(1,NA), name = "Size [g]", trans = "log10") + 
+      scale_fill_manual(values = sim@params@linecolour)+
+      theme(legend.position = "right", legend.key = element_rect(fill = "white"),
+        panel.background = element_blank(), panel.grid.minor = element_line(color = "gray"),
+        strip.background = element_blank())
+  
+  if(returnData) return(plot_dat) else return(p)
+    
 }
-
+# Try facets
 
 plotFmsy <- function(params, effortRes = 20, returnData = F, speciesData = NULL)
 {
@@ -384,19 +421,114 @@ plot_dat <- rbind(plot_dat,SpDat)
     
 }
 }
+
+plot_dat$species <- factor(plot_dat$species, levels = params@species_params$species)
 # colnames(plot_dat) <- c("yield","effort","species")
 if(!is.null(speciesData)) p <- ggplot(filter(plot_dat, species == speciesName)) else p <- ggplot(plot_dat)
 
 p <- p + geom_line(aes(x = effort , y = yield, color = species))+
   facet_wrap(species~., scales = "free") +
-  scale_x_continuous(limits= c(0,xlim))+#, limits = c(1e10,NA))+
+  scale_x_continuous(limits= c(0,xlim),name = "fishing mortality rate")+#, limits = c(1e10,NA))+
   scale_y_continuous(trans = "log10") +
   scale_color_manual(name = "Species", values = params@linecolour) +
-    theme(legend.position = "bottom", legend.key = element_rect(fill = "white"))
+    theme(legend.position = "none", legend.key = element_rect(fill = "white"),
+           panel.background = element_blank(), panel.grid.minor = element_line(color = "gray"),
+          strip.background = element_blank())
 
 if(returnData) return(plot_dat) else return(p)
 
 }
+
+
+plotGrowthCurves2 <- function (object, 
+                               species = NULL, 
+                               max_age = 20, 
+                               percentage = FALSE, 
+                               species_panel = FALSE, 
+                               highlight = NULL,
+                               returnData = F) 
+{
+  if (is(object, "MizerSim")) {
+    params <- object@params
+    t <- dim(object@n)[1]
+    params@initial_n[] <- object@n[t, , ]
+    params@initial_n_pp <- object@n_pp[t, ]
+  }
+  else if (is(object, "MizerParams")) {
+    params <- validParams(object)
+  }
+  species <- valid_species_arg(params, species)
+  ws <- getGrowthCurves(params, species, max_age, percentage)
+  plot_dat <- reshape2::melt(ws)
+  plot_dat$Species <- factor(plot_dat$Species, params@species_params$species)
+  plot_dat$legend <- "model"
+  if (all(c("a", "b", "k_vb") %in% names(params@species_params))) {
+    if ("t0" %in% names(params@species_params)) {
+      t0 <- params@species_params$t0
+    }
+    else {
+      t0 <- 0
+    }
+    VBdf <- data.frame(species = params@species_params$species, 
+                       w_inf = params@species_params$w_inf, a = params@species_params$a, 
+                       b = params@species_params$b, k_vb = params@species_params$k_vb, 
+                       t0 = t0)
+    VBdf$L_inf <- (VBdf$w_inf/VBdf$a)^(1/VBdf$b)
+    plot_dat2 <- plot_dat
+    plot_dat2$value <- apply(plot_dat, 1, function(x) {
+      sel <- VBdf$species == x[1]
+      length <- VBdf$L_inf[sel] * (1 - exp(-VBdf$k_vb[sel] * 
+                                             (as.numeric(x[2]) - VBdf$t0[sel])))
+      VBdf$a[sel] * length^VBdf$b[sel]
+    })
+    plot_dat2$legend <- "von Bertalanffy"
+    plot_dat <- rbind(plot_dat, plot_dat2)
+  }
+  p <- ggplot(filter(plot_dat, legend == "model")) + geom_line(aes(x = Age, 
+                                                                   y = value, colour = Species, linetype = Species, size = Species))
+  y_label <- if (percentage) "Percent of maximum size" else "Size [g]"
+  linesize <- rep(0.8, length(params@linetype))
+  names(linesize) <- names(params@linetype)
+  linesize[highlight] <- 1.6
+  p <- p + scale_x_continuous(name = "Age [Years]") + scale_y_continuous(name = y_label) + 
+    scale_colour_manual(values = params@linecolour) + scale_linetype_manual(values = params@linetype) + 
+    scale_size_manual(values = linesize)
+  if (!percentage) {
+    if (length(species) == 1) {
+      idx <- which(params@species_params$species == species)
+      w_inf <- params@species_params$w_inf[idx]
+      p <- p + geom_hline(yintercept = w_inf, colour = "grey") + 
+        annotate("text", 0, w_inf, vjust = -1, label = "Maximum")
+      w_mat <- params@species_params$w_mat[idx]
+      p <- p + geom_hline(yintercept = w_mat, linetype = "dashed", 
+                          colour = "grey") + annotate("text", 0, w_mat, 
+                                                      vjust = -1, label = "Maturity")
+      if ("von Bertalanffy" %in% plot_dat$legend) 
+        p <- p + geom_line(data = filter(plot_dat, legend == 
+                                           "von Bertalanffy"), aes(x = Age, y = value))
+    }
+    else if (species_panel) {
+      p <- ggplot(plot_dat) + 
+        geom_line(aes(x = Age, y = value, colour = legend)) + 
+        scale_x_continuous(name = "Age [years]") +
+        scale_y_continuous(name = "Size [g]") +
+        facet_wrap(.~Species, scales = "free") +
+        geom_hline(aes(yintercept = w_mat),
+                   data = tibble(Species = as.factor(object@params@species_params$species[]),
+                                 w_mat = object@params@species_params$w_mat[]),
+                   linetype = "dashed", colour = "grey") +
+        geom_hline(aes(yintercept = w_inf),
+                   data = tibble(Species = as.factor(object@params@species_params$species[]),
+                                 w_inf = object@params@species_params$w_inf[]),
+                   linetype = "solid", colour = "grey") +
+              theme(panel.background = element_blank(), panel.grid.minor = element_line(color = "gray"),
+              strip.background = element_blank(), legend.key = element_blank())+
+        scale_color_discrete(name = "Growth", labels = c("Modelled","von Bertalanffy"))
+    }
+  }
+  if(returnData) return(plot_dat) else return(p)
+}
+
 
 ```
 
@@ -459,6 +591,9 @@ erepro: coefficent that weights reproductive output
 
 ```{r step 0 - first run,message=F, warning = F}
 
+# params_uncalibrated@species_params <- params_uncalibrated@species_params[order(params_uncalibrated@species_params$w_inf),] # ordering by asymptotic size for color gradient
+
+
 # lets' change the plotting colours, by far the hardest and trickiest part
 
 # looks good but hard to distinguish some species
@@ -512,7 +647,9 @@ The following .csv are extracted from the ICES database using "data/getICESFishd
 
 # fisheries mortality F
 fMat <- read.csv("data/fmat.csv")
-fMatWeighted <- read.csv("data/fmatWeighted.csv") # Sandeel and Cod have multiple data base so average their F and weighting by SSB
+# fMatWeighted <- read.csv("data/fmatWeighted.csv") # Sandeel and Cod have multiple data base so average their F and weighting by SSB
+fMatWeighted <- readRDS("data/FmatWeightedInterpolated.rds") # to get Gurnard data
+
 
 # read in time-averaged  catches  
 catchAvg <-read.csv("data/time-averaged-catches.csv") # only that one is used at the moment | catches are estimated from fMatW
@@ -526,35 +663,69 @@ ssbAvg <- read.csv("data/time-averaged-SSB.csv")
 
 ```{r step 1 - visual representation of the data, warning=F}
 
-plot_dat <- reshape2::melt(fMatWeighted,"X")
-colnames(plot_dat) <- c("Time", "Species", "F")
+# plot_dat <- reshape2::melt(fMatWeighted,"X")
+# colnames(plot_dat) <- c("Time", "Species", "F")
+# 
+# ggplot(plot_dat)+
+#   geom_line(aes(x = Time, y = F, color = Species))+
+#   scale_y_continuous(name = "Fisheries mortality rate") +
+#   scale_color_manual(values = params_uncalibrated@linecolour) +
+#   theme(                   panel.background = element_blank(),
+#                    panel.grid.minor = element_line(color = "gray"),
+#                    legend.key = element_rect(fill = "white"))
 
-ggplot(plot_dat)+
-  geom_line(aes(x = Time, y = F, color = Species))+
-  scale_y_continuous(name = "Fisheries mortality rate") +
-  scale_color_manual(values = params_uncalibrated@linecolour)
+
+
+# overlapping fisheries mortality with next plot
+
+plot_dat <- apply(as.matrix(fMatWeighted[67:73,]),2,mean, na.rm = T)
+plot_dat <- plot_dat[2:length(plot_dat)]
+plot_dat <- melt(plot_dat)
+plot_dat$Species <- factor(as.character(rownames(plot_dat)),levels = c(as.character(params_uncalibrated@species_params$species)))
+plot_dat <- plot_dat[order(plot_dat$Species),]
+plot_dat$w_inf <- params_uncalibrated@species_params$w_inf
+plot_dat2 <- plot_dat
+
   
 plot_dat <- data.frame(catchAvg,ssbAvg)
 plot_dat$species.1 <- NULL
 colnames(plot_dat) <- c("Species", "average catch", "average SSB")
 plot_dat$Species <- factor(as.character(plot_dat$Species),levels = c(as.character(params_uncalibrated@species_params$species)))
 plot_dat <- reshape2::melt(plot_dat,"Species")
+plot_dat$w_inf <- rep(params_uncalibrated@species_params$w_inf,2)
 
   
-  ggplot(plot_dat) +
-    geom_bar(aes(x = Species,y = value, fill = Species, alpha = variable), stat = "identity", position = position_dodge()) +
-    # coord_cartesian(ylim = c(0.5*min(plot_dat$value),NA)) +
+  # ggplot(plot_dat) +
+  #   geom_bar(aes(x = Species,y = value, fill = Species, alpha = variable), stat = "identity", position = position_dodge()) +
+  #   geom_point(aes(x = Species))
+  #   scale_y_continuous(trans = "log10", name = "Catch (clear) and SSB (solid)") + #, limits = c(0.5*min(plot_dat$value),NA)) +
+  #   scale_fill_manual(name = "Species", values = params_uncalibrated@linecolour) +
+  #   scale_alpha_manual(name = "Stat", values = c(0.5, 1), labels = c("Catch", "SSB")) +
+  #   theme(
+  #         legend.position = "none", legend.key = element_rect(fill = "white"))
+    
+ 
 
-    scale_y_continuous(trans = "log10", name = "Catch (clear) and SSB (solid)") + #, limits = c(0.5*min(plot_dat$value),NA)) +
-    scale_fill_manual(name = "Species", values = params_uncalibrated@linecolour) +
-    scale_alpha_manual(name = "Stat", values = c(0.5, 1), labels = c("Catch", "SSB")) +
-    theme(
-          legend.position = "none", legend.key = element_rect(fill = "white"))
+ggplot(plot_dat)+
+  geom_point(aes(x = w_inf, y = value, color = Species, shape = variable), size = 6, alpha = .8) +
+  geom_point(data = plot_dat2, aes(x = w_inf, y = value*1562500, color = Species, shape = "averaged fishing mortality"), size = 6, alpha = .8)+
+  geom_text_repel(data = filter(plot_dat,variable == "average SSB"), aes(x = w_inf, y = value, label = Species), hjust = 0, nudge_x = 0.05)+
+  geom_line(aes(x = w_inf, y = value, color = Species)) +
+  scale_y_continuous(name = "Catch and SSB", limits = c(0,NA),sec.axis = sec_axis(trans = ~./1562500)) +
+  scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+  scale_color_manual(name = "Species", values = params_uncalibrated@linecolour) +
+  scale_shape_manual(name = "Data", values = c(16,4,17)) +
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_line(color = "gray"),
+        legend.position = "bottom",legend.key = element_rect(fill = "white"))+
+  guides(color = FALSE)
+
 
 
 ```
 
 The first plot shows the fishing time-series per species while the second plot shows the average ssb and catch for the period 2014 - 2019.
+
 
 RF: Dab and Gurnard have some issues, it comes from the data though, the calculations are correct
 
@@ -589,20 +760,33 @@ The ecosystem looks way better. Saithe's largest individuals are having a hard t
 
 ```{r step 2 - RDI/RDD}
 
-  plot_dat <- as.data.frame(getRDI(sim_guessed@params)/getRDD(sim_guessed@params))
+  plot_dat <- as.data.frame(getRDD(sim_guessed@params)/getRDI(sim_guessed@params))
   plot_dat$species <- factor(rownames(plot_dat),sim_guessed@params@species_params$species)
   colnames(plot_dat)[1] <- "ratio"
+  plot_dat$w_inf <- sim_guessed@params@species_params$w_inf
 
-ggplot(plot_dat) +
-  geom_bar(aes(x = species, y = ratio, fill = species),stat="identity") +
-  scale_fill_manual(name = "Species", values = sim_guessed@params@linecolour) +
-  scale_y_continuous(name = "RDI/RDD", trans = "log10") +
-  scale_x_discrete(name = "Species") +
-   theme(panel.background = element_rect(fill = "white", color = "black"),
-        legend.position = "none")
+# ggplot(plot_dat) +
+#   geom_bar(aes(x = species, y = ratio, fill = species),stat="identity") +
+#   scale_fill_manual(name = "Species", values = sim_guessed@params@linecolour) +
+#   scale_y_continuous(name = "density-independent / density-dependent reproduction rate", trans = "log10") +
+#   scale_x_discrete(name = "Species") +
+#    theme(panel.background = element_rect(fill = "white", color = "black"),
+#         legend.position = "none")
+
+ggplot(plot_dat)+
+  geom_point(aes(x = w_inf, y = ratio, color = species), size = 6, alpha = .8) +
+  geom_text(aes(x = w_inf, y = ratio, label = species), hjust = 0, nudge_x = 0.05)+
+  # geom_line(aes(x = w_inf, y = value, color = Species)) +
+  scale_y_continuous(name = "density-independent / density-dependent reproduction rate", limits = c(0,1)) +
+  scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+  scale_color_manual(name = "Species", values = params_uncalibrated@linecolour) +
+  theme(panel.background = element_blank(),
+                   panel.grid.minor = element_line(color = "gray"),
+       legend.position = "none")
 
 
-getRDI(sim_guessed@params)/getRDD(sim_guessed@params)
+
+
 
 
 
@@ -618,6 +802,8 @@ Is the physiological recruitment, $RDI$, much higher than the realised recruitme
 ```{r step 2 - observed/predicted catches}
 
 plotPredObsYield(sim_guessed,catchAvg$Catch_1419_tonnes) 
+
+
 
 ```
 
@@ -785,6 +971,8 @@ In this section you will:
 $eRepro$ represents the energy conversion efficiency between energy allocated to reproduction and the actual spawn. Lowering $erepro$ biologically means higher egg mortality rate or wasteful energy invested into gonads. For example, $eRepro$ is currently set to $0.01$ meaning, that for every one $g$ of mass allocated to reproduction, $0.1g$ will be used as spawn recruitment, the rest is lost. This coefficient is applied before any density-dependence requirement. Let's use Rshiny to see how varying $eRepro$ influences the ecosystem (to play around).
 
 
+RF: shiny disabled for pdf
+
 
 ```{r step 4 r-shiny, eval = F, cache = F, include = F}
 # Optional
@@ -856,12 +1044,14 @@ saveRDS(plot_dat, "Fmsy.rds")
 plot_dat <- readRDS("Fmsy.rds")
 
 ggplot(plot_dat) +
-geom_line(aes(x = effort , y = yield, color = species))+
+ geom_line(aes(x = effort , y = yield, color = species))+
   facet_wrap(species~., scales = "free") +
-  scale_x_continuous(limits= c(0,1.5))+#, limits = c(1e10,NA))+
+  scale_x_continuous(limits= c(0,1.5),name = "fishing mortality rate")+#, limits = c(1e10,NA))+
   scale_y_continuous(trans = "log10") +
   scale_color_manual(name = "Species", values = params_optim@linecolour) +
-    theme(legend.position = "bottom", legend.key = element_rect(fill = "white"))
+    theme(legend.position = "none", legend.key = element_rect(fill = "white"),
+           panel.background = element_blank(), panel.grid.minor = element_line(color = "gray"),
+          strip.background = element_blank())
 
 
 
@@ -869,6 +1059,8 @@ geom_line(aes(x = effort , y = yield, color = species))+
 ```
 
 Decreasing $eRepro$ is going to move the $MSY$ towards lower effort. Until now we had the same $eRepro$ for all species but we can input species-specific values to calibrate our recruitment. To do so, let's use another shiny app again. The next one allows you to change $eRepro$ one at a time and see the effect on the species' $F_{msy}$
+
+RF: shiny disable for pdf
 
 
 ```{r step 4 - shiny Fmsy, eval = F, cache = F, include = F}
@@ -936,7 +1128,7 @@ Let's see what our system looks like with species-specific $eRepro$
 ```{r step 4 - Fmsy with tweaked erepro, warning=F}
 
 
-params_optim@species_params$erepro <- 10^(c(-1,-2,-4,-4.5,-3,-3,-2,-3,-2,-2,-2,-2))
+params_optim@species_params$erepro <- 10^(c(-1,-2,-4,-4,-3,-3,-2,-3,-2,-2,-2,-2))
 
 params_optim2 <- setParams(params_optim)
 sim_optim2 <- project(params_optim2, effort = 1, t_max = 100)
@@ -1018,7 +1210,7 @@ In this section you will:
 
 ```{r step 5 - growth curves prior}
 
-plotGrowthCurves(sim_optim2, species_panel = T)
+plotGrowthCurves2(sim_optim2, species_panel = T)
 
 # Ken's comment: plotGrowthCurves. Legend should be “model”, “Observed”. Need to discuss about that since we need to change the plot in Mizer then
 
@@ -1039,10 +1231,10 @@ The feeding level here shows that the species reaching the highest size classes 
 
 ```{r step 5 - diets, warning=F}
 
-plotDiet2(sim_optim2, "Haddock")
-plotDiet2(sim_optim2, "Plaice")
-plotDiet2(sim_optim2, "Saithe")
-
+# plotDiet2(sim_optim2, "Haddock")
+# plotDiet2(sim_optim2, "Plaice")
+# plotDiet2(sim_optim2, "Saithe")
+plotDiet2(sim_optim2)
 
 
 ```
@@ -1144,7 +1336,7 @@ plotSummary(sim_optim)
 
 plotPredObsYield(sim_optim,catchAvg$Catch_1419_tonnes) 
 
-plotDiet2(sim_optim@params,"Cod") 
+plotDiet2(sim_optim,"Cod") 
 
 plotGrowthCurves(sim_optim, species_panel = T)
 ```
