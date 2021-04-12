@@ -172,6 +172,7 @@ ggplot(plot_dat)+
         legend.position = "bottom",legend.key = element_rect(fill = "white"))+
   guides(color = FALSE)
 
+
 ```
 
 This plot shows the averaged data over the 2014-2019 period. Species are ordered per asympotic size on the x-axis. There are 2 data points per species. The average catch (disc) and average SSB (triangle) are linked by a line. Units is ...
@@ -218,6 +219,8 @@ params_uncalibrated@species_params[,-which(colnames(params_uncalibrated@species_
                                              c("sel_func","gear","interaction_resource","pred_kernel_type","m","alpha","n","p","q","w_min"))]
 
 ```
+
+
 
 ```{r step 0 - color scheme, include=F}
 # params_uncalibrated@species_params <- params_uncalibrated@species_params[order(params_uncalibrated@species_params$w_inf),] # ordering by asymptotic size for color gradient
@@ -319,7 +322,6 @@ The top panel shows the different species size spectrum at the last time step of
 These plots show that species do not coexist and several go extinct. This is because there was no external density dependence ($R_{max}$ is set at $Inf$) and the largest species (Cod and Saithe) are out-competing the rest.
 
 RF: should we put earlier a typical looking size spectrum?
-
 
 
 To get coexistence one needs to guess reasonable $R_{max}$ values which will stop out-competition from a few species. We assume that a the density dependence is going to be posively related to body size, meaning that large individuals will have a stronger density-dependence applied to them (and therefore a lower $R_{max}$ value)
