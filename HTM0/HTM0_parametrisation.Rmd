@@ -11,7 +11,7 @@ always_allow_html: true
 ---
 
 
-```{r set up, message = F}
+```{r set up, message = F,include=FALSE}
 
 source("../utility.R")
 
