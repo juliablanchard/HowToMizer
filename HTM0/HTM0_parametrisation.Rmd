@@ -343,6 +343,7 @@ params_guessed <- setParams(params_guessed)
 # run with fishing
 sim_guessed <- project(params_guessed, t_max = 100, effort =1)
 plotSummary(sim_guessed, short = T)
+saveRDS(sim_guessed, "HTM0_sim.rds")
 
 
 ```
