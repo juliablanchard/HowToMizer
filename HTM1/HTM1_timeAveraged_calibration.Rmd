@@ -43,8 +43,18 @@ In this tutorial you will learn
 - Introduce rShiny for model exploration
 
 
+In this tutorial, we are going to follow the same path as HTM0 and keep using the North Sea data set as an example.
 
 We finished HTM0 with a manually parametrised model with species coexisting, now we want our model to reflect reality. To do so we are going to compare the model output to data by matching catch, biomass and/or growth rate depending on what is available.
+
+In the plot below we compare the catch output of the model and the averaged catch we extracted from the ICES database in the previous tutorial using the function `plotPredObsYield`.
+
+
+```{r step 0 - observed/predicted catches}
+
+plotPredObsYield(sim_guessed,catchAvg$Catch_1419_tonnes) 
+
+```
 
 
 ## Step 1. Calibrate the maximum recruitment
@@ -263,7 +273,15 @@ shinyApp(
 ```
 
 
-Now let's take a look at the current $F_msy$ per species. To do so we need to set up an ecosystem with one gear per species and vary one gear intensity at a time while the other gear stay constant (default effort value of one).
+Now let's take a look at the current $F_{msy}$ per species. 
+
+Amy: Something max sus yeild? What's the F? Can you put the meaning in brackets after the term. (Of course I am not a mechanistic modeller so this is all new to me).
+
+
+To do so we need to set up an ecosystem with one gear per species and vary one gear intensity at a time while the other gear stay constant (default effort value of one).
+
+Amy: Okay gear kind of comes out of the blue here. So this is where fishing intensity gets brought in?
+Also add an 's' to the third gear, e.g. 'gears'.
 
 ```{r step 2 - Fmsy | data crunching, eval=F}
 
@@ -374,7 +392,15 @@ plotFmsy(params_optim2, effortRes = 30, returnData = F)
 
 ```
 
-Some trade-offs here, relatively high $eRepro$ allows Sprat to coexist with the othe species but he $F_{msy}$ plot looks wrong. The same is true for Dab but I do not want to lower too much $eRepro$ either. Instead we are going to run the $R_{max}$ calibration again to see if we improved the yield match.
+Some trade-offs here, relatively high $eRepro$ allows Sprat to coexist with the othe species but the $F_{msy}$ plot looks wrong. 
+
+Amy: Okay, so it looks 'wrong' but why? Can you say something like:
+"although it allows sprat to coexist you can see that the [whatever] assumption indicated by the graph is unrealistic (i.e. it is unlikely that sprat would [do whatever it is that looks wrong])."
+
+The same is true for Dab but I do not want to lower too much $eRepro$ either. Instead we are going to run the $R_{max}$ calibration again to see if we improved the yield match.
+
+Amy: (why) "I do not want to [whatever] the eRepro because this would push our assumptions of this value into unlikely realms, whereby assuming a greater proportion of eggs are [whatever] than likely"
+
 
 And now let's use this set of parameters to run the $R_{max}$ calibration again as in step 3.
 
@@ -433,7 +459,7 @@ plotPredObsYield(sim_optim2,catchAvg$Catch_1419_tonnes)
 ```
 
 Now the fit is less good overall but we only have 2 outliers, N.pout and Sandeel
-
+RF: rewrite sentence
 
 ## Step 3. Calibrating the growth
 
