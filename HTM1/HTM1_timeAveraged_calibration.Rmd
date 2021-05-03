@@ -390,6 +390,8 @@ plotSummary(sim_optim2, short = T)
 
 plotFmsy(params_optim2, effortRes = 30, returnData = F)
 
+saveRDS(sim_optim2, file = "sim_optim1.2.RDS")
+
 ```
 
 Some trade-offs here, relatively high $eRepro$ allows Sprat to coexist with the othe species but the $F_{msy}$ plot looks wrong. 
