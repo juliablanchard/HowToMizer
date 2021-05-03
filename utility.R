@@ -431,3 +431,50 @@ plotGrowthCurves2 <- function (object,
   if(returnData) return(plot_dat) else return(p)
 }
 
+getBiomassFrame2 <- function (sim, species = dimnames(sim@n)$sp[!is.na(sim@params@A)], min_w = NULL,
+          start_time = as.numeric(dimnames(sim@n)[[1]][1]), end_time = as.numeric(dimnames(sim@n)[[1]][dim(sim@n)[1]]), 
+          ylim = c(NA, NA), total = FALSE, ...) 
+{
+  if(is.null(min_w)) b <- getBiomass(sim, ...) 
+  else {
+    biom_per_size <- sim@n
+    
+    if(length(min_w) == 1) # can probably condense both cases in one
+    {
+      # find which size class is right after user-inputed w_min
+      min_w_cell <- which(as.numeric(dimnames(biom_per_size)$w) >= min_w)[1]
+      b <- apply(biom_per_size[,,min_w_cell:dim(biom_per_size)[3]],c(1,2),sum)
+    } else if (length(min_w) == dim(biom_per_size)[2]){
+      # find which size class is right after user-inputed w_min for each species
+      for(iW in min_w) min_w_cell <- c(min_w_cell,which(as.numeric(dimnames(biom_per_size)$w) >= iW)[1])
+# remove size before w_min
+      for(iSpecies in 1:dim(biom_per_size)[2]) biom_per_size[,iSpecies,1: (min_w_cell[iSpecies]-1)] <- 0
+      
+      b <- apply(biom_per_size,c(1,2),sum)
+  }
+  
+  }
+  
+  
+  if (start_time >= end_time) {
+    stop("start_time must be less than end_time")
+  }
+  b <- b[(as.numeric(dimnames(b)[[1]]) >= start_time) & (as.numeric(dimnames(b)[[1]]) <= 
+                                                           end_time), , drop = FALSE]
+  b_total <- rowSums(b)
+  if (total) {
+    b <- cbind(b, Total = b_total)
+    species <- c("Total", species)
+  }
+  bm <- mizer::melt(b)
+  min_value <- 1e-20
+  bm <- bm[bm$value >= min_value & (is.na(ylim[1]) | bm$value >= 
+                                      ylim[1]) & (is.na(ylim[2]) | bm$value <= ylim[2]), ]
+  names(bm) <- c("Year", "Species", "Biomass")
+  species_levels <- c(dimnames(sim@n)$sp, "Background", "Resource", 
+                      "Total")
+  bm$Species <- factor(bm$Species, levels = species_levels)
+  bm <- bm[bm$Species %in% species, ]
+  return(bm)
+}
+
