@@ -446,6 +446,7 @@ getBiomassFrame2 <- function (sim, species = dimnames(sim@n)$sp[!is.na(sim@param
       b <- apply(biom_per_size[,,min_w_cell:dim(biom_per_size)[3]],c(1,2),sum)
     } else if (length(min_w) == dim(biom_per_size)[2]){
       # find which size class is right after user-inputed w_min for each species
+      min_w_cell <- NULL
       for(iW in min_w) min_w_cell <- c(min_w_cell,which(as.numeric(dimnames(biom_per_size)$w) >= iW)[1])
 # remove size before w_min
       for(iSpecies in 1:dim(biom_per_size)[2]) biom_per_size[,iSpecies,1: (min_w_cell[iSpecies]-1)] <- 0
@@ -477,4 +478,5 @@ getBiomassFrame2 <- function (sim, species = dimnames(sim@n)$sp[!is.na(sim@param
   bm <- bm[bm$Species %in% species, ]
   return(bm)
 }
+
 
