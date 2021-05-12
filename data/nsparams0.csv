@@ -1,0 +1,13 @@
+species,w_inf,w_mat,beta,sigma,k_vb,sel_func,l25,l50,a,b,catchability,gear
+Sprat,33,13,51076,0.8,0.681,sigmoid_length,7.6,8.1,0.007,3.014,1.295333333,sigmoid_gear
+Sandeel,36,4,398849,1.9,1,sigmoid_length,9.8,11.8,0.001,3.32,0.065105468,sigmoid_gear
+N.pout,100,23,22,1.5,0.849,sigmoid_length,8.7,12.2,0.009,2.941,0.3138,sigmoid_gear
+Dab,324,21,191,1.9,0.536,sigmoid_length,11.5,17,0.01,2.986,0.978,sigmoid_gear
+Herring,334,99,280540,3.2,0.606,sigmoid_length,10.1,20.8,0.002,3.429,0.1815,sigmoid_gear
+Gurnard,668,39,283,1.8,0.266,sigmoid_length,19.8,29,0.004,3.198,0.462505695,sigmoid_gear
+Sole,866,78,381,1.9,0.284,sigmoid_length,16.4,25.8,0.008,3.019,0.373833333,sigmoid_gear
+Whiting,1192,75,22,1.5,0.323,sigmoid_length,19.8,29,0.006,3.08,0.242666667,sigmoid_gear
+Plaice,2976,105,113,1.6,0.122,sigmoid_length,11.5,17,0.007,3.101,0.184833333,sigmoid_gear
+Haddock,4316.5,165,558,2.1,0.271,sigmoid_length,19.1,24.3,0.005,3.16,0.3015,sigmoid_gear
+Saithe,39658.6,1076,40,1.1,0.175,sigmoid_length,35.3,43.6,0.007,3.075,0.393,sigmoid_gear
+Cod,39851.3,1606,66,1.3,0.216,sigmoid_length,13.2,22.9,0.005,3.173,0.266667492,sigmoid_gear
