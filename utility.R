@@ -480,3 +480,64 @@ getBiomassFrame2 <- function (sim, species = dimnames(sim@n)$sp[!is.na(sim@param
 }
 
 
+plotCalibration <- function(sim, catch_dat = NULL, stage = 1, wlim = c(.1,NA), power = 1, effortRes = 10)
+{
+  dat = catchAvg$Catch_1419_tonnes
+  font_size = 8
+  xlim = c(NA,10^log10(max(sim@params@species_params$w_inf)))
+  
+  switch (stage,
+          "1" = {
+            p1 <- plotSpectra(sim, power = power, wlim = wlim)#, ...)
+            p1 <- p1  + scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]") +
+              theme(
+                text = element_text(size=font_size),
+                panel.background = element_blank(),
+                panel.grid.minor = element_line(color = "gray"),
+                legend.position = "right", legend.key = element_rect(fill = "white"))
+            # guides(color = guide_legend(nrow=2))
+            
+            mylegend<-g_legend(p1) # save the legend
+            p1 <- p1 + theme(legend.position = "none") # now remove it from the plot itself
+            
+            p2 <- plotBiomass(sim)
+            p2 <- p2 + theme(legend.position = "none",
+                             text = element_text(size=font_size),
+                             panel.background = element_blank(),
+                             panel.grid.minor = element_line(color = "gray"))
+            
+            if(is.null(catch_dat))
+            {
+              leftCol <- plot_grid(p1,p2,
+                                   ncol = 1, align = "v")
+              p <- plot_grid(leftCol, mylegend,
+                             rel_widths = c(6,1),
+                             ncol = 2) 
+            } else {
+            
+            p3 <- plotPredObsYield(sim,catch_dat) 
+            p3 <- p3 + theme(text = element_text(size=font_size))
+            # change tick marks to undersandble ones
+            
+            
+            leftCol <- plot_grid(p1,p2,p3,
+                                 ncol = 1, align = "v")
+            p <- plot_grid(leftCol, mylegend,
+                           rel_widths = c(6,1),
+                           ncol = 2)
+            }
+          },
+          "3" = {
+            p <- plotFmsy(sim@params,effortRes = effortRes)
+          },
+          "2" = {
+            p <- plotGrowthCurves2(sim, species_panel = T)
+            
+          },
+          {print("Unknow stage selected.")
+            p <- NULL}
+  )
+  return(p)
+}
+
+

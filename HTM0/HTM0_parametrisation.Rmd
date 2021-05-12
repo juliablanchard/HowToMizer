@@ -41,6 +41,8 @@ In this section you will:
 - learn what data you need to run Mizer
 
 
+![Parameters in a real fish](../paper/parameterSketch.png)
+
 First you are going to need a data frame of species specfic parameters to input into the `newMultispeciesParams()` function. This function requires at least three columns of parameters:
 
 - species name (`species`)
@@ -294,13 +296,9 @@ w_mat25: weight at which 25% of individuals are mature
 erepro: coefficent that weights reproductive output
 
 
-## Step 3 - Checking assumptions
 
-In this section you will:
 
-???
-
-## Step 4 - Running and exploring the model for the first time to check coexistence (e.g. first guess)
+## Step 3 - Running and exploring the model for the first time to check coexistence (e.g. first guess)
 
 In this section you will:
 
@@ -395,5 +393,22 @@ Is the physiological recruitment, $RDI$, much higher than the realised recruitme
 
 
 
+## Step 4 - Checking assumptions
 
+In this section you will:
+
+- Lookout for tell-tale sign of something wrong happening in your ecosystem
+
+
+The figure below shows an example of a calibrated ecosystem.
+
+![summary diagnostic](../paper/tempSummaryAnnoted.png)
+
+Let's compare it to our own little ecosystem
+
+```{r}
+
+plotCalibration(sim_guessed)
+
+```
 
