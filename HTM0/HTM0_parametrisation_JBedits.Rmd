@@ -2,12 +2,11 @@
 title: "How to Mizer - how to parametrise a Mizer model"
 author: "Julia L. Blanchard, Ken H. Andersen, Gustav Delius, Romain Forestier"
 date: "`r Sys.Date()`"
-place: Hobart, Australia
 output:
+  pdf_document: default
   html_document: default
-  # pdf_document: default
-always_allow_html: true
-#runtime: shiny
+place: Hobart, Australia
+always_allow_html: yes
 ---
 
 
@@ -33,47 +32,15 @@ In this tutorial you will learn
 
 The multispecies model in mizer allows you to resolve species-specific differences in life history and feeding parameters that are important for modelling particular ecosystems.
 
-Brief description of the species-specific parameters and show the Figure 1 from the paper.
+Figure 1 is an illustration of the parameters needed (blue boxes) and calibrated (green boxes) by Mizer. The need for data is hierarchical: a model can be setup and calibrated with the information in red: knowledge of the asymptotic size and observations of biomass and fishing. The calibration can be refined by adding further information in life history parameters and by using knowledge of Fmsy to calibrate the reproductive efficiency (orange). Additional refinement can be done by specifying the interaction matrix, theta (blue). Other parameters can be adjusted but they are rarely known accurately on a species-by-species basis (black).
 
-Add figure from paper here.
 
-RF: should this parameter description be shown sooner? YES describe each parameter AND THE DATA USED FOR EACH - E.G. go through the figure..
+```{r}
+library(knitr)
+# All defaults
+include_graphics("../paper/parameterSketch.png")
+```
 
-w_inf: asymptotic size
-
-w_mat: maturation size (determines when 50% of the population has matured / not sure!)
-
-beta: preferred predator/prey mass ratio
-
-sigma: width of the feeding kernel
-
-R_max: Beverton-Holt density dependence parameter
-
-k_vb: von Bertalanffy growth parameter
-
-l25: length at 25% of fishery selectivity
-
-l50: length at 25% of fishery selectivity
-
-a: coefficient for age to size conversion
-
-b: constant for age to size conversion
-
-catchability: the proportion of fish caught by the trawl that are available
-
-h: maximum intake rate
-
-k: metabolism constant
-
-ks: metabolism coefficient
-
-z0: background mortality coefficient
-
-gamma: search volume (obtained from beta and sigma)
-
-w_mat25: weight at which 25% of individuals are mature
-
-erepro: coefficent that weights reproductive output
 
 Let's start with the minimal amount of information
 
@@ -172,10 +139,10 @@ F = catchability*selectivity*effort
 The selectivity parameters are determined from l_25, l_50, and sel_func  but simpler appraches can also be used. See 
 https://sizespectrum.org/mizer/reference/setFishing.html
 
-For the North Sea we assumed catchability*effort could be estimate form the fishing moratlity rates of fully selected sizes/ages of fish from single-species stock assessments. The  following .csv are extracted from the ICES stock assessment database using "data/getICESFishdata_param.R". Fishing mortality data is averaged over 2014-2019 as it is a relatively stable period in catches and has the maximum amount of data across all species concerned.
+For the North Sea we assumed catchability*effort could be estimated from the fishing moratlity rates of fully selected sizes/ages of fish from single-species stock assessments. The  following .csv are extracted from the ICES stock assessment database using "data/getICESFishdata_param.R". Fishing mortality data is averaged over 2014-2019 as it is a relatively stable period in catches and has the maximum amount of data across all species concerned.
 
 
-### THESE ARE NOT IN THE RIGHT ORDER SWITCH COD AND SAITHER EITHER HERE OR INPUT...
+** Note the species are not in the right order here, but we can fix that later...
 
 
 
@@ -242,9 +209,14 @@ params_uncalibrated@species_params[,-which(colnames(params_uncalibrated@species_
 
 ## Step 3 - Checking assumptions
 
-In this section you will:
+In this section you will run the model to equilbrium using the function project() and will be able to plot the model simulaution output.
 
-??? Update this with new plots we discussed
+First, let's go through an example we have made previously to provide some tips of what to look for once you run the model.
+
+```{r}
+# All defaults
+include_graphics("../paper/tempSummaryJB.png")
+```
 
 ## Step 4 - Running and exploring the model for the first time to check coexistence (e.g. first guess)
 
@@ -263,10 +235,7 @@ sim_uncalibrated <- project(params_uncalibrated, t_max = 100, effort = 1)
 plotSummary(sim_uncalibrated, short = T)
 
 ```
-
-## PLOT SUMMARY WOULD BE BETTER AS THE NEW PLOT - LONG BUT NOT WORKING
-
-### NEED TO EXPLAIN WHAT TO LOOK FOR HERE -> EG ANNOTATED SUMMARY
+ JB - note error in plotSummary long =T - why?
 
 The top panel shows the different species size spectrum at the last time step of the simulation while the bottom panel shows the abundance per species through time.
 
@@ -311,13 +280,6 @@ $R_{max}$ affects the density-dependent reproduction rate ($RDD$) but limiting t
   colnames(plot_dat)[1] <- "ratio"
   plot_dat$w_inf <- sim_guessed@params@species_params$w_inf
 
-# ggplot(plot_dat) +
-#   geom_bar(aes(x = species, y = ratio, fill = species),stat="identity") +
-#   scale_fill_manual(name = "Species", values = sim_guessed@params@linecolour) +
-#   scale_y_continuous(name = "density-independent / density-dependent reproduction rate", trans = "log10") +
-#   scale_x_discrete(name = "Species") +
-#    theme(panel.background = element_rect(fill = "white", color = "black"),
-#         legend.position = "none")
 
 ggplot(plot_dat)+
   geom_point(aes(x = w_inf, y = ratio, color = species), size = 6, alpha = .8) +
