@@ -266,6 +266,8 @@ plotSummary(sim_uncalibrated, short = T)
 
 ## PLOT SUMMARY WOULD BE BETTER AS THE NEW PLOT - LONG BUT NOT WORKING
 
+### NEED TO EXPLAIN WHAT TO LOOK FOR HERE -> EG ANNOTATED SUMMARY
+
 The top panel shows the different species size spectrum at the last time step of the simulation while the bottom panel shows the abundance per species through time.
 
 These plots show that species do not coexist and several go extinct. This is because there was no external density dependence ($R_{max}$ is set at $Inf$) and the largest species (Cod and Saithe) are out-competing the rest.
