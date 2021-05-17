@@ -3,7 +3,7 @@ title: "How to Mizer - how to parametrise a Mizer model"
 author: "Julia L. Blanchard, Ken H. Andersen, Gustav Delius, Romain Forestier"
 date: "`r Sys.Date()`"
 output:
-  pdf_document: default
+  #pdf_document: default
   html_document: default
 place: Hobart, Australia
 always_allow_html: yes
@@ -215,7 +215,7 @@ First, let's go through an example we have made previously to provide some tips 
 
 ```{r}
 # All defaults
-include_graphics("../paper/tempSummaryJB.png")
+include_graphics("../paper/tempSummaryAnnoted.png")
 ```
 
 ## Step 4 - Running and exploring the model for the first time to check coexistence (e.g. first guess)
