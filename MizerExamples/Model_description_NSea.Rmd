@@ -1,0 +1,46 @@
+---
+title: "Model Description - North Sea"
+author: "Julia L. Blanchard"
+date: "17/05/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### Model Description
+
+
+## Study System:
+
+#Lat/Long:
+
+#Units:
+
+##Data sources for calibration:
+
+Data sources for each of the parameters (this could be a table of references or just a list for each type of parameters in the sketch) and if defaults were used.
+
+#Method for calibration:
+
+#Parameters estimated in calibrated:
+
+#Key citation for model:
+
+#Known issues with calibration:
+
+#Other relevant references:
+
+#Contact person for use of model:
+
+## Summary plots
+
+- read in model here and make the standardised plots for each model
+
+
+```{r, echo=FALSE}
+
+
+```
