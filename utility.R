@@ -16,6 +16,7 @@ if(!require('ggrepel', quietly = TRUE, warn.conflicts = FALSE)) install.packages
 if(!require('cowplot', quietly = TRUE, warn.conflicts = FALSE)) install.packages("cowplot")
 if(!require('gridExtra', quietly = TRUE, warn.conflicts = FALSE)) install.packages("gridExtra")
 if(!require('viridis', quietly = TRUE, warn.conflicts = FALSE)) install.packages("viridis")
+if(!require("knitr", quietly = TRUE, warn.conflicts = FALSE)) install.packages("knitr")
 
 
 g_legend<-function(a.gplot){

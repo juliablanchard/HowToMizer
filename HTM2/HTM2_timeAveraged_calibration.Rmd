@@ -15,7 +15,7 @@ always_allow_html: true
 source("../utility.R")
 # loading HTM0 data
 # model
-sim_guessed <- readRDS("../HTM0/HTM0_sim.rds")
+sim_guessed <- readRDS("../HTM1/HTM1_sim.rds")
 params_guessed <- sim_guessed@params
 # database
 # fisheries mortality F
