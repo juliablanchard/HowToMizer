@@ -30,25 +30,59 @@ In this tutorial you will learn
 
 ## Step 1 - What data are typically needed to parameterise a mizer model?
 
+![Figure 1: Illustration of the parameters needed (blue boxes) and calibrated (green boxes) by Mizer. The need for data is hierarchical: a model can be setup and calibrated with the information in red: knowledge of the asymptotic size and observations of biomass and fishing. The calibration can be refined by adding further information in life history parameters and by using knowledge of Fmsy to calibrate the reproductive efficiency (orange). Additional refinement can be done by specifying the interaction matrix, theta (blue). Other parameters can be adjusted but they are rarely known accurately on a species-by-species basis (black).](../paper/parameterSketch.png)
+
+Parameter description table:
+
+w_inf: asymptotic size
+
+w_mat: maturation size (determines when 50% of the population has matured / not sure!)
+
+beta: preferred predator/prey mass ratio
+
+sigma: width of the feeding kernel
+
+R_max: Beverton-Holt density dependence parameter
+
+k_vb: von Bertalanffy growth parameter
+
+l25: length at 25% catch
+
+l50: length at 50% catch
+
+a: coefficient for age to size conversion
+
+b: constant for age to size conversion
+
+catchability: fisheries efficiency
+
+h: maximum intake rate
+
+k: metabolism constant
+
+ks: metabolism coefficient
+
+z0: background mortality coefficient
+
+gamma: search volume (obtained from beta and sigma)
+
+w_mat25: weight at which 25% of individuals are mature
+
+erepro: coefficent that weights reproductive output
+
+
+
 The multispecies model in mizer allows you to resolve species-specific differences in life history and feeding parameters that are important for modelling particular ecosystems.
 
-Figure 1 is an illustration of the parameters needed (blue boxes) and calibrated (green boxes) by Mizer. The need for data is hierarchical: a model can be setup and calibrated with the information in red: knowledge of the asymptotic size and observations of biomass and fishing. The calibration can be refined by adding further information in life history parameters and by using knowledge of Fmsy to calibrate the reproductive efficiency (orange). Additional refinement can be done by specifying the interaction matrix, theta (blue). Other parameters can be adjusted but they are rarely known accurately on a species-by-species basis (black).
-
-
-```{r}
-library(knitr)
-# All defaults
-include_graphics("../paper/parameterSketch.png")
-```
-
-
-Let's start with the minimal amount of information
+Let's start with the minimal amount of information neede to run a mizer model.
 
 First you are going to need a data frame of species specfic parameters to input into the `newMultispeciesParams()` function. This function requires at least three columns of parameters:
 
 - species name (`species`)
-- asymptotic size (`w_inf`)
+- asymptotic weight (`w_inf`)
 - maximum intake rate (`h`) or von Bertalanffy growth parameter (`k_vb`)
+
+TODO: what is `w_inf` and what is VB
 
 The data frame is arranged as species by parameter, so each column of the parameter data frame is a parameter and each row has the values of the parameters for one of the species in the model.
 
@@ -56,18 +90,20 @@ You will also need an interaction matrix that defines the overlapping interactio
 
 All other parameters either have default values or will be calculated from the supplied parameters.
 
-Let's start with a small made up example assuming we have already found some paramters from FishBase or the literature.
+Let's start with a small made up example assuming we have already found some parameters from FishBase or the literature.
 
-Here we consider two interacting species and a background resource spectrum (we will come back to this). Using the North Sea as an example, let's start with the iconic Atlantic cod and a key focal prey species sandeel.
+Here we consider two interacting species and a background resource spectrum (we will come back to this). Using the North Sea as an example, let's start with the iconic Atlantic Cod and a key local prey species Sandeel.
 
-Remember to minimally set up this model we can look on Fishbase (www.fishbase.se or use the rfishbase package) to find the aymptotic weigts of these two species.
+Remember to minimally set up this model we can look on Fishbase (www.fishbase.se or use the `rfishbase` package) to find the aymptotic weights of these two species.
 
-A search on fishbase reveals some paramters from empirical von Bertanffy growth curves which can be used to set up the life history parameters - w_inf and k_vb. 
+A search on fishbase reveals some parameters from empirical von Bertalanffy growth curves which can be used to set up the life history parameters - `w_inf` and `k_vb`. 
 
-Often von Bertalanffy relationships are based on length not weight and the length paramters can be comverted to weight using length-weight regressions. 
+Often von Bertalanffy relationships are based on length not weight and the length parameters can be converted to weight using length-weight regressions. Each species has a slightly different regression relationship which uses 2 parameters (usually called "a" and "b") and is based on the following formula:
+
+TODO weight-size relationship equation here
+
 
 We find an asymptotic length of 132 cm and k of 0.2 for cod in the North Sea here:https://www.fishbase.se/popdyn/PopGrowthList.php?ID=69&GenusName=Gadus&SpeciesName=morhua&fc=183
-
 
 And for sandeel, 18.5 cm and k_vb=0.4 
 
@@ -86,15 +122,15 @@ https://www.fishbase.se/popdyn/LWRelationshipList.php?ID=37&GenusName=Ammodytes&
 
 this estimates a w_inf = 22.83 g 
 
-If w_inf or l_inf are not aviable you could use maximum observed sizes, these values are often systematically larger than estimates of aymptotic weight, and we recommend you check the literature or size-at-age data for your system to check reliability of fishbase estimates.
+If `w_inf` or `l_inf` are not available you could use maximum observed sizes, these values are often systematically larger than estimates of asymptotic weight, and we recommend you check the literature or size-at-age data for your system to check reliability of fishbase estimates.
 
-We also know from the literature that the preferred predator-prey mass ratio for cod is approx. 100 for cod and we mighgt guess that it is approx. 10000 for sandeel as they feed on prey much smaller than themselves. This means that cod of any given size are 100 times larger than their preferred prey size and sandeels are 10000 larger than theirs.
+We also know from the literature that the preferred predator-prey mass ratio for Cod is approximately 100 and we might guess that it is approximately 10000 for Sandeel as they feed on prey much smaller than themselves. This means that cods of any given size are 100 times larger than their preferred prey size and sandeels are 10000 larger than theirs.
 
 For simplicity, we will assume defaults for all other parameters and that both species occur in the same environmenta throughout their lives (interaction matrix = 1).
 
 
 ```{r step 1 - small example}
-smallExample <- data.frame("species" = c("sandeel","cod"),"w_inf" = c(24600,23), "k_vb" = c(0.2,0.1),"beta" = c(100,10000))
+smallExample <- data.frame("species" = c("sandeel","cod"),"w_inf" = c(23,24600), "k_vb" = c(0.1,0.2),"beta" = c(10000,100))
 smallExample
 smallInter <- matrix(c(1,1,1,1),ncol = 2, dimnames = list(smallExample$species,smallExample$species))
 smallInter
@@ -204,21 +240,13 @@ params_uncalibrated@species_params$erepro <- .01 # default is 1
 params_uncalibrated@species_params[,-which(colnames(params_uncalibrated@species_params) %in% 
                                              c("sel_func","gear","interaction_resource","pred_kernel_type","m","alpha","n","p","q","w_min"))]
 
+# TODO Reduce further the number of parameters on the screen (maybe just show 2 species) and add descritpion below
+
 ```
 
 
-## Step 3 - Checking assumptions
 
-In this section you will run the model to equilbrium using the function project() and will be able to plot the model simulaution output.
-
-First, let's go through an example we have made previously to provide some tips of what to look for once you run the model.
-
-```{r}
-# All defaults
-include_graphics("../paper/tempSummaryAnnoted.png")
-```
-
-## Step 4 - Running and exploring the model for the first time to check coexistence (e.g. first guess)
+## Step 3 - Running and exploring the model for the first time to check coexistence (e.g. first guess)
 
 In this section you will:
 
@@ -235,18 +263,19 @@ sim_uncalibrated <- project(params_uncalibrated, t_max = 100, effort = 1)
 plotSummary(sim_uncalibrated, short = T)
 
 ```
+
  JB - note error in plotSummary long =T - why?
 
 The top panel shows the different species size spectrum at the last time step of the simulation while the bottom panel shows the abundance per species through time.
 
 These plots show that species do not coexist and several go extinct. This is because there was no external density dependence ($R_{max}$ is set at $Inf$) and the largest species (Cod and Saithe) are out-competing the rest.
 
-RF: should we put earlier a typical looking size spectrum?
+
 
 
 To get coexistence one needs to guess reasonable $R_{max}$ values which will stop out-competition from a few species. We assume that a the density dependence is going to be posively related to body size, meaning that large individuals will have a stronger density-dependence applied to them (and therefore a lower $R_{max}$ value)
 
-
+TODO explain Rmax here
 
 
 
@@ -263,7 +292,7 @@ params_guessed <- setParams(params_guessed)
 # run with fishing
 sim_guessed <- project(params_guessed, t_max = 100, effort =1)
 plotSummary(sim_guessed, short = T)
-saveRDS(sim_guessed, "HTM0_sim.rds")
+saveRDS(sim_guessed, "HTM1_sim.rds")
 
 
 ```
@@ -274,6 +303,7 @@ $R_{max}$ affects the density-dependent reproduction rate ($RDD$) but limiting t
 
 
 ```{r step 3 - RDD/RDI}
+#TODO update to last version, maybe make a function
 
   plot_dat <- as.data.frame(getRDD(sim_guessed@params)/getRDI(sim_guessed@params))
   plot_dat$species <- factor(rownames(plot_dat),sim_guessed@params@species_params$species)
@@ -309,4 +339,24 @@ Is the physiological recruitment, $RDI$, much higher than the realised recruitme
 
 
 
+## Step 4 - Checking assumptions
 
+In this section you will:
+
+- Lookout for tell-tale sign of something wrong happening in your ecosystem
+
+Let's go through an example we have made previously to provide some tips of what to look for once you run the model.
+
+The figure below shows an example of a calibrated ecosystem.
+
+![summary diagnostic](../paper/tempSummaryAnnoted.png)
+
+Let's compare it to our own little ecosystem
+
+```{r}
+
+plotCalibration(sim_guessed)
+
+```
+
+TODO remove warnings
