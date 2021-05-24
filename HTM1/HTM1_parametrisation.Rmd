@@ -260,7 +260,7 @@ These plots show that species do not coexist and several go extinct. This is bec
 > $$RDD = R_{max}\frac{RDI}{RDI + R_{max}}$$
 > RDD is the dependent reproduction rate that will determine the recruitement per species in the model.
 
-![Figure 2: Effect of density dependence on recruitment](../paper/Rmax.png)
+![Figure 2: Illustration of the interplay between the reproductive output and the external density dependence. The model simulates a size spectrum of each species (right). From that spectrum it calculates the reproductive output (blue arrow). The reproductive output is reduced by imposing an external density dependence in the form of a stock recruitment relationship (left panel; orange line). The recruitment then determines the flow of new recruits into the size spectrum. The simulation continues until the size spectrum reaches an equilibrium (which may be a dynamic equilibrium). Changing Rmax up or down by a factor results in a change up or down of the spectrum by the same factor. Rmax therefore functions as the central parameter that adjusts the total biomass of a species.](../paper/Rmax.png)
 
 To get coexistence one needs to guess reasonable $R_{max}$ values which will stop out-competition from a few species. We assume that a the density dependence is going to be posively related to body size, meaning that large individuals will have a stronger density-dependence applied to them (and therefore a lower $R_{max}$ value). Let's start again and set some guessed `R_max` values.
 
