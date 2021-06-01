@@ -70,7 +70,11 @@ First you are going to need a data frame of species specfic parameters to input 
 - maximum intake rate (`h`) or von Bertalanffy growth parameter (`k_vb`)
 
 > ### Von Bertalanffy Growth Function
-> The Von Bertalanffy growth function predicts the length of a fish as a function of its age. Both growth rate and maximum size can be extrapolated from this relationship.
+> The growth curve of a fish is commonly reported as a von Bertalanffy growth curve. The von Bertalanffy curve describes the length of a fish as a function of two parameters; the asymptotic length $L_\infty$ and the von Bertalanffy growth coefficient $K$ (`k_vb` in Mizer): 
+$$ L_{(t)} = L_\infty (1-e^{-Kt}) $$
+where $t$ is the age. $L_\infty$ represents the asymptotic length and $1/k_vb$ is approximately the age at maturation. Mizer, however, uses two two other parameters, $W_\infty$ and $h$ (`w_inf` in Mizer), where $W_\infty$ represents the asymptotic weight and $h$ the size-scale maximum consumption rate. Fortunately, the two sets of parameters are related, and one can derive $h$ and $W_\infty$ from von Bertalanffy $K$ and $L_\infty$. 
+
+>The parameter $h$ represents the maximum consumption rate of a fish, scaled by size. If we assume that stomach fullness (the feeding level) is that same for fish of all sizes, then $h$ is related to the coefficient of the initial growth rate $A$ (blue slanted dashed line) as $h$ approx. $4A$. The value of $h$ varies between $4-400$, with a geometric mean around $22 g^{-0.25}/year$ across all fish species (Andersen 2019, chap. 2 and 11). A more precise estimate can be obtained from von Bertalanffy $K$ and $L_\infty$ as: $h$ approx. $4.75K.L_\infty^{0.75}$ (with $K$ given in $1/years$ and $L_\infty$ in $cm$).
 
 The data frame is arranged as species by parameter, so each column of the parameter data frame is a parameter and each row has the values of the parameters for one of the species in the model.
 
@@ -88,10 +92,9 @@ To set up this model we can look on Fishbase (www.fishbase.se or use the `rfishb
 A search on fishbase reveals some parameters from empirical von Bertalanffy growth curves which can be used to set up the life history parameters - `w_inf` and `k_vb`. Often von Bertalanffy relationships are based on length and not weight. The length parameters can be converted to weight using length-weight regressions
 
 > ### Length-weight regression
-> Each species has a slightly different regression relationship which uses 2 parameters (usually called "a" and "b") and is based on the following formula:
-> $$ w = a × L^b $$
-
-
+The asymptotic length and weight are related as:
+$$W_\infty = a.L_\infty^b$$
+Species-specific conversion coefficients $a$ and $b$ are found in Froese (2006). Reasonable general values are: $a = 0.01 g/cm^{-3}$ and $b = 3$.
 
 
 We find an asymptotic length of 132 cm and k of 0.2 for cod in the North Sea here:https://www.fishbase.se/popdyn/PopGrowthList.php?ID=69&GenusName=Gadus&SpeciesName=morhua&fc=183
@@ -210,7 +213,7 @@ params_uncalibrated <- newMultispeciesParams(nsParams, inter, kappa = 1e11)
 
 You will note that in the case of the North Sea, we provide another parameter `kappa`. `kappa` sets the carrying capacity of the ecosystem and is set to reflect the entire volume of the North Sea - hence the very large `kappa` value.
 
-> ### Backgroud resource spectrum
+> ### Background resource spectrum
 > In Mizer, a background resource spectrum is simulated to represent all the food sources that are not explicilty modelled as fish. It is especially useful to feed small-sized fish that are not piscivores. The carrying capacity of the background spectrum is determined by `kappa` and its regeneration rate by `r_pp`. High `kappa` implies more food and therefore faster growth rate and/or higher sustainable fish biomass.
 
 ```{r step 2 - mizerParams tweaks NS}
