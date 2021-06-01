@@ -4,7 +4,7 @@
 
 if(!require('devtools', quietly = TRUE, warn.conflicts = FALSE)) install.packages("devtools")
 if(!require('mizer', quietly = TRUE, warn.conflicts = FALSE)) devtools::install_github("sizespectrum/mizer")
-if(!require('mizerExperimental', quietly = TRUE, warn.conflicts = FALSE)) devtools::install_github("sizespectrum/mizerExperimental")
+# if(!require('mizerExperimental', quietly = TRUE, warn.conflicts = FALSE)) devtools::install_github("sizespectrum/mizerExperimental")
 if(!require('tidyverse', quietly = TRUE, warn.conflicts = FALSE)) install.packages("tidyverse")
 if(!require('plotly', quietly = TRUE, warn.conflicts = FALSE)) install.packages("plotly")
 if(!require('tictoc', quietly = TRUE, warn.conflicts = FALSE)) install.packages("tictoc")
@@ -595,7 +595,7 @@ getDietComp<- function(sim, n = sim@n[dim(sim@n)[1],,],  n_pp = sim@n_pp[dim(sim
   }
   
   # Starting the function
-  #Biomass by species;
+  # Biomass by species;
   n_total_in_size_bins<- sweep(n, 2, object@dw , "*")
   b_tot <- sweep(n_total_in_size_bins, 2, object@w , "*")
   
@@ -625,3 +625,63 @@ getDietComp<- function(sim, n = sim@n[dim(sim@n)[1],,],  n_pp = sim@n_pp[dim(sim
 
   return(diet_comp)
 } 
+
+
+getDietMizer <-
+function (params, n = initialN(params), n_pp = initialNResource(params), 
+          n_other = initialNOther(params), proportion = TRUE) 
+{
+  params <- validParams(params)
+  species <- params@species_params$species
+  no_sp <- length(species)
+  no_w <- length(params@w)
+  no_w_full <- length(params@w_full)
+  no_other <- length(params@other_encounter)
+  other_names <- names(params@other_encounter)
+  assert_that(identical(dim(n), c(no_sp, no_w)), length(n_pp) == 
+                no_w_full)
+  diet <- array(0, dim = c(no_sp, no_w, no_sp + 1 + no_other), 
+                dimnames = list(predator = species, w = dimnames(params@initial_n)$w, 
+                                prey = c(as.character(species), "Resource", other_names)))
+  idx_sp <- (no_w_full - no_w + 1):no_w_full
+  if (length(params@ft_pred_kernel_e) == 1) {
+    ae <- matrix(params@pred_kernel[, , idx_sp, drop = FALSE], 
+                 ncol = no_w) %*% t(sweep(n, 2, params@w * params@dw, 
+                                          "*"))
+    diet[, , 1:no_sp] <- ae
+    diet[, , no_sp + 1] <- rowSums(sweep(params@pred_kernel, 
+                                         3, params@dw_full * params@w_full * n_pp, "*"), dims = 2)
+  }
+  else {
+    prey <- matrix(0, nrow = no_sp + 1, ncol = no_w_full)
+    prey[1:no_sp, idx_sp] <- sweep(n, 2, params@w * params@dw, "*")
+    prey[no_sp + 1, ] <- n_pp * params@w_full * params@dw_full
+    ft <- array(rep(params@ft_pred_kernel_e, times = no_sp + 1) * rep(mvfft(t(prey)), each = no_sp), dim = c(no_sp, no_w_full, no_sp + 1))
+    ft <- matrix(aperm(ft, c(2, 1, 3)), nrow = no_w_full)
+    ae <- array(Re(mvfft(ft, inverse = TRUE)/no_w_full), 
+                dim = c(no_w_full, no_sp, no_sp + 1))
+    ae <- ae[idx_sp, , , drop = FALSE]
+    ae <- aperm(ae, c(2, 1, 3))
+    ae[ae < 1e-18] <- 0
+    diet[, , 1:(no_sp + 1)] <- ae
+  }
+  inter <- cbind(params@interaction, params@species_params$interaction_resource)
+  diet[, , 1:(no_sp + 1)] <- sweep(sweep(diet[, , 1:(no_sp + 
+                                                       1), drop = FALSE], c(1, 3), inter, "*"), c(1, 2), params@search_vol, 
+                                   "*")
+  for (i in seq_along(params@other_encounter)) {
+    diet[, , no_sp + 1 + i] <- do.call(params@other_encounter[[i]], 
+                                       list(params = params, n = n, n_pp = n_pp, n_other = n_other, 
+                                            component = names(params@other_encounter)[[i]]))
+  }
+  f <- getFeedingLevel(params, n, n_pp)
+  fish_mask <- n > 0
+  diet <- sweep(diet, c(1, 2), (1 - f) * fish_mask, "*")
+  if (proportion) {
+    total <- rowSums(diet, dims = 2)
+    diet <- sweep(diet, c(1, 2), total, "/")
+    diet[is.nan(diet)] <- 0
+  }
+  return(diet)
+}
+
