@@ -128,7 +128,7 @@ kable(smallInter, caption = "species' interactions")
 
 ```
 
-The 'smallExample' shows the format of the data frame for the species parameters and the 'smallInter' shows the format of the interaction matrix. Both of these are required as inputs for creating a "mizerParams" object. Many mizer users will collect this information in a spreadsheet prior to reading in the data into mizer. 
+The `smallExample` shows the format of the data frame for the species parameters and the `smallInter` shows the format of the interaction matrix. Both of these are required as inputs for creating a `mizerParams` object. Many mizer users will collect this information in a spreadsheet prior to reading in the data into mizer. 
 
 To illustrate this next step we will use pre-existing  set of species' specific parameters for a previously published  North Sea model, that used more detailed fisheries dependent and independent data to calculate species parameters. 
 
