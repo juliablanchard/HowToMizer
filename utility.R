@@ -27,23 +27,31 @@ g_legend<-function(a.gplot){
 
 # arrow to show asymptotic size
 
-plotSummary <- function (x, y, power = 2, wlim = c(.1,NA), short = F, ...) 
+plotSummary <- function (x, y, power = 1, wlim = c(.001,NA), short = F, save_it = FALSE, name_save = NULL, ...) 
 {
-  xlim = c(NA,10^log10(max(x@params@species_params$w_inf)))
+  xlim = c(wlim[1],10^log10(max(x@params@species_params$w_inf)))
   font_size = 7
   
   # need to display the legend at the bottom and only p1 has the background so using that one
   
-  p1 <- plotSpectra(x, power = power, wlim = wlim, ...)
-  p1 <- p1  + scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]") +
+  plot_dat <- plotSpectra(x, power = power, wlim = wlim, return_data = TRUE, total = TRUE,)#, ...)
+  
+  p1 <- ggplot(plot_dat[[1]]) +
+    geom_line(aes(x = w, y = value, colour = Species, group = Species)) +
+    scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]")+#, breaks = log_breaks()) +
+    scale_y_continuous(name = "Biomass density" ,trans = "log10", breaks = log_breaks()) +
+    # scale_y_continuous(name = expression(paste("Biomass density (ind.", m^{-3},")", sep="")) ,trans = "log10", breaks = log_breaks()) +
+    scale_colour_manual(values = x@params@linecolour) +
+    scale_linetype_manual(values = x@params@linetype) +
     theme(axis.title.x=element_blank(),
           axis.text.x=element_blank(),
           axis.ticks.x=element_blank(),
           text = element_text(size=font_size),
           panel.background = element_blank(),
           panel.grid.minor = element_line(color = "gray"),
-          legend.position = "right", legend.key = element_rect(fill = "white"))
-  # guides(color = guide_legend(nrow=2))
+          panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+          legend.position = "right", legend.key = element_rect(fill = "white")) +
+    guides(color = guide_legend(nrow=1))
   
   mylegend<-g_legend(p1) # save the legend
   p1 <- p1 + theme(legend.position = "none") # now remove it from the plot itself
@@ -52,7 +60,8 @@ plotSummary <- function (x, y, power = 2, wlim = c(.1,NA), short = F, ...)
   p7 <- p7 + theme(legend.position = "none",
                    text = element_text(size=font_size),
                    panel.background = element_blank(),
-                   panel.grid.minor = element_line(color = "gray"),)
+                   panel.grid.minor = element_line(color = "gray"),
+                   panel.border = element_rect(colour = "gray", fill=NA, size=.5))
   # theme_bw()
   
   if(short)
@@ -71,25 +80,64 @@ plotSummary <- function (x, y, power = 2, wlim = c(.1,NA), short = F, ...)
   {
     
     
+    dat2 <- plotFeedingLevel2(x, include_critical = T, return_data = T)#,...)
     
-    p2 <- plotFeedingLevel(x, include_critical = F, ...)
-    p2 <- p2 + scale_x_continuous(limits = xlim, trans = "log10") +
+    p2 <- ggplot(dat2[[1]]) + 
+      geom_line(aes(x = w, y = value, colour = Species, alpha = "actual")) +
+      geom_line(data = dat2[[2]], aes(x = w, y = value, colour = Species, alpha = "critical")) +
+      scale_discrete_manual("alpha", name = "Feeding Level", values = c(actual = 1, critical = 0.5)) +
+      scale_x_continuous(name = "Size [g]", trans = "log10", limits = xlim) + 
+      scale_y_continuous(name = "Feeding Level", limits = c(0, 1)) + 
+      scale_colour_manual(values = x@params@linecolour) + 
       theme(axis.title.x=element_blank(),
             axis.text.x=element_blank(),
             axis.ticks.x=element_blank(),
+            panel.background = element_blank(),
+            panel.grid.minor = element_line(color = "gray"),
+            panel.border = element_rect(colour = "gray", fill=NA, size=.5),
             text = element_text(size=font_size),
             legend.position = "none")
-    p3 <- plotPredMort(x, ...)
-    p3 <- p3 + scale_x_continuous(limits = xlim, trans = "log10") +
+    
+    
+    dat3 <- plotPredMort(x, return_data = T)#, ...)
+    dat3$mortality <- "predation"
+    dat4 <- plotFMort(x, return_data = T)#, ...)
+    dat4$mortality <- "fisheries"
+    plot_dat <- rbind(dat3,dat4)
+    
+    linesize <- rep(0.8, length(x@params@linetype))
+    names(linesize) <- names(x@params@linetype)
+    
+    p3 <-   ggplot(plot_dat) +
+      geom_line(aes(x = w, y = value, colour = Species, linetype = mortality, size = Species)) +
+      scale_x_continuous(name = "Size [g]", trans = "log10", limits = xlim) +
+      scale_y_continuous(name = "Predation and fisheries mortality [1/year]", limits = c(0, 2)) +
+      scale_colour_manual(values = x@params@linecolour) +
+      scale_size_manual(values = linesize) +
       theme(axis.title.x=element_blank(),
             axis.text.x=element_blank(),
             axis.ticks.x=element_blank(),
+            # axis.text.y = element_text(family = "mono"),
+            panel.background = element_blank(),
+            panel.grid.minor = element_line(color = "gray"),
+            panel.border = element_rect(colour = "gray", fill=NA, size=.5),
             text = element_text(size=font_size),
             legend.position = "none")
-    p4 <- plotFMort(x, ...)
-    p4 <- p4 + scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]") +
-      theme(legend.position = "none",
-            text = element_text(size=font_size),)
+    
+    p4 <-   ggplot(plot_dat) +
+      geom_line(aes(x = w, y = value, colour = Species, linetype = mortality, size = Species)) +
+      scale_x_continuous(name = "Individual size [g]", trans = "log10", limits = xlim) +
+      scale_y_continuous(name = "Predation and fisheries mortality [1/year]", limits = c(.01, max(plot_dat$value)), trans = "log10") +
+      scale_colour_manual(values = x@params@linecolour) +
+      scale_size_manual(values = linesize) +
+      theme(panel.background = element_blank(),
+            panel.grid.minor = element_line(color = "gray"),
+            panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+            text = element_text(size=font_size),
+            legend.position = "none")
+    
+    
+    
     
     
     
@@ -99,72 +147,195 @@ plotSummary <- function (x, y, power = 2, wlim = c(.1,NA), short = F, ...)
     
     # yeild and ssb |
     
-    bm <- getBiomassFrame(x)
+    
+    # plot_dat <- data.frame(catchAvg,ssbAvg)
+    # plot_dat$species.1 <- NULL
+    # colnames(plot_dat) <- c("Species", "average catch", "average SSB")
+    # plot_dat$Species <- factor(as.character(plot_dat$Species),levels = c(as.character(nsParams$species)))
+    # plot_dat <- reshape2::melt(plot_dat,"Species")
+    # plot_dat$w_inf <- rep(nsParams$w_inf,2)
+    
+    
+    
+    
+    # bm <- getBiomassFrame2(x,min_w = x@params@species_params$w_mat)
+    bm <- getBiomassFrame2(x)
     plot_dat <- filter(bm, Year == max(unique(bm$Year)))
     # plot_dat$w_inf <- x@params@species_params$w_inf
     yieldDat <- getYield(x)
     plot_dat$yield <- yieldDat[dim(yieldDat)[1],]
     plot_dat$Year <- NULL
-    plot_dat <- melt(plot_dat,"Species")
-    p5 <- ggplot(plot_dat) +
-      geom_bar(aes(x = Species,y = value, fill = Species, alpha = variable), stat = "identity", position = position_dodge()) +
-      coord_cartesian(ylim = c(0.5*min(plot_dat$value),NA)) +
-      # geom_text(aes(x = Species, y = value, label = Species), check_overlap = T)+
-      
-      # geom_point(aes(x = w_inf, y = Biomass, color = species)) +
-      # geom_point(aes(x = w_inf, y = yield, color = species), shape = "+", size = 5) +
-      # scale_x_continuous(name = "SSB and Yield") +
-      scale_y_continuous(trans = "log10", name = "SSB and Yield") + #, limits = c(0.5*min(plot_dat$value),NA)) +
-      scale_fill_manual(name = "Species", values = x@params@linecolour) +
-      scale_alpha_manual(name = "Stat", values = c(1, 0.5), labels = c("SSB","Yield")) +
-      theme(axis.title.x=element_blank(),
+    colnames(plot_dat) <- c("Species", "average SSB", "average catch")
+    plot_dat$Species <- factor(as.character(plot_dat$Species),levels = c(as.character(x@params@species_params$species)))
+    plot_dat <- reshape2::melt(plot_dat,"Species")
+    plot_dat$w_inf <- rep(x@params@species_params$w_inf,2)
+    
+    # don't use ssb but total biomass
+    p5 <- ggplot(plot_dat)+
+      geom_point(aes(x = w_inf, y = value, color = Species, shape = variable), size = 6, alpha = .8) +
+      # geom_point(data = plot_dat2, aes(x = w_inf, y = value*1562500, color = Species, shape = "averaged fishing mortality"), size = 6, alpha = .8)+
+      geom_text_repel(data = filter(plot_dat,variable == "average SSB"), aes(x = w_inf, y = value, label = Species), hjust = 0, nudge_x = 0.05)+
+      geom_line(aes(x = w_inf, y = value, color = Species)) +
+      scale_y_continuous(name = "Catch and Biomass", limits = c(NA,NA), trans = "log10") +#,sec.axis = sec_axis(trans = ~./1562500)) +
+      scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+      scale_colour_manual(values = x@params@linecolour) +
+      scale_shape_manual(name = "Data", values = c(16,17)) + # add 4 if fisheries mortality present
+      theme(panel.background = element_blank(),
+            panel.grid.minor = element_line(color = "gray"),
+            panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+            axis.title.x=element_blank(),
             axis.text.x=element_blank(),
             axis.ticks.x=element_blank(),
             text = element_text(size=font_size),
-            legend.position = "bottom", legend.key = element_rect(fill = "white"))
+            legend.position = "none",legend.key = element_rect(fill = "white"))+
+      guides(color = FALSE)
     
-    mylegend<-g_legend(p5) # save the legend
-    p5 <- p5 + theme(legend.position = "none")
-    
-    # try yield divided by total biomass, we want to see the difference
+    # mylegend<-g_legend(p5) # save the legend
+    # p5 <- p5 + theme(legend.position = "none")
     
     # r0
     
+    # RDD/RDI
+    #   plot_dat <- as.data.frame(getRDD(x@params)/getRDI(x@params))
+    #   plot_dat$species <- factor(rownames(plot_dat),x@params@species_params$species)
+    # colnames(plot_dat)[1] <- "ratio"
+    # plot_dat$w_inf <- sim_guessed@params@species_params$w_inf
+    # 
+    # 
+    # p6 <- ggplot(plot_dat)+
+    #   geom_point(aes(x = w_inf, y = ratio, color = species), size = 6, alpha = .8) +
+    #   geom_text_repel(aes(x = w_inf, y = ratio, label = species), hjust = 0, nudge_x = 0.05)+
+    #   # geom_line(aes(x = w_inf, y = value, color = Species)) +
+    #   scale_y_continuous(name = "density-dependent / density-independent reproduction rate", limits = c(0,1)) +
+    #   scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
+    #   scale_color_manual(name = "Species", values = params_uncalibrated@linecolour) +
+    #   theme(panel.background = element_blank(), 
+    #                   panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+    #         text = element_text(size=font_size),
+    #         panel.grid.minor = element_line(color = "gray"),
+    #         legend.position = "bottom",legend.key = element_rect(fill = "white"))
+    
+    #RDI / RDD
     plot_dat <- as.data.frame(getRDI(x@params)/getRDD(x@params))
     plot_dat$species <- factor(rownames(plot_dat),x@params@species_params$species)
     colnames(plot_dat)[1] <- "ratio"
-    plot_dat$w_inf <- as.numeric(x@params@species_params$w_inf)
-    
-    # trying to have bars at their w_inf but on a continuous scale
-    plot_dat$label <- plot_dat$species
-    plot_dat2 <- plot_dat
-    plot_dat2$ratio <- 0
-    plot_dat2$label <- NA
-    plot_dat <- rbind(plot_dat,plot_dat2)
+    plot_dat$w_inf <- x@params@species_params$w_inf
     
     
-    p6 <- ggplot(plot_dat) +
-      geom_line(aes(x = w_inf, y = ratio, color = species), size = 15, alpha = .8) +
-      geom_text(aes(x = w_inf, y = ratio, label = label),position = position_stack(vjust = 0.5), angle = 30, size = 3)+
-      scale_color_manual(name = "Species", values = x@params@linecolour) +
-      scale_y_continuous(name = "RDI/RDD") +
+    p6 <- ggplot(plot_dat)+
+      geom_point(aes(x = w_inf, y = ratio, color = species), size = 6, alpha = .8) +
+      geom_text_repel(aes(x = w_inf, y = ratio, label = species), hjust = 0, nudge_x = 0.05)+
+      # geom_line(aes(x = w_inf, y = value, color = Species)) +
+      scale_y_continuous(name = "Density-independent / density-dependent reproduction rate", trans = "log10") +
       scale_x_continuous(name = "Asymptotic size (g)", trans = "log10") +
-      theme(legend.position = "none",
-            text = element_text(size=font_size),) 
+      scale_colour_manual(values = x@params@linecolour) +
+      theme(panel.background = element_blank(), 
+            panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+            text = element_text(size=font_size),
+            panel.grid.minor = element_line(color = "gray"),
+            legend.position = "bottom",legend.key = element_rect(fill = "white"))
     
     
+    # mylegend<-g_legend(p6) # save the legend
+    p6 <- p6 + theme(legend.position = "none")
     
     
+    # predator / prey mass comparison    
     
-    p10 <- plot_grid(p1,p2,p3,p4, p5, p6, p7, mylegend, byrow = F,  
-                     # rel_heights = c(1,1,1,2),
-                     rel_widths = c(2,1),
-                     nrow = 4, align = "v", axis = "l")
+    diet_dat <- getDietComp(sim)
+    SpIdx <- sim@params@species_params$species
+    tempSimDf <- NULL
+    
+    for(iSpecies in SpIdx) # for each species
+    {
+      diet_dat_sp <- diet_dat[iSpecies,,,] 
+      diet_dat_sp<- apply(diet_dat_sp,c(1,3),sum) # sum prey identity, keep size class
+      speciesPPMR <- NULL
+      size_name_vec <- NULL
+      size_preferred <- NULL
+      for(iSize in dimnames(diet_dat_sp)$pred_size) # for each size class need PPMR value
+      {
+        if(sum(diet_dat_sp[iSize,])) # if there is at least one diet data
+        {
+          size_name_vec <- c(size_name_vec,iSize)
+          sizeDat <- diet_dat_sp[iSize,] # select the size
+          densityDat <- sizeDat / as.numeric(as.character(names(sizeDat)))# adjust biomass > density
+          
+          # calculating realised PPMR
+          PreferredSizeClass <- which(densityDat == max(densityDat)) # which size class is most feed upon
+          sizePPMR <- as.numeric(iSize)/as.numeric(names(PreferredSizeClass)) # calculate PPMR
+          speciesPPMR <- c(speciesPPMR,sizePPMR)
+          
+          # what's the favorite mass? (taking the name of the size class)
+          size_preferred <- c(size_preferred,as.numeric(names(PreferredSizeClass)))
+          
+          # what's the mean mass? converting from biomass in bin to mass I guess 
+          # how to calculate the average from a set of discrete values? I would need to duplicate the discrete classes by the biomass number (or individual whatever)
+          # and then calculate the mean from that, is it legit?
+          # for now, simple soluttion, mean mass is most eaten mass (assuming normal distribution)
+          # temp <- sizeDat / sim@params@w / sim@params@dw
+          # f1n <- MASS::fitdistr(sizeDat,"normal")
+          # mean(temp)
+          # c <- hist(sizeDat)
+          # size_mean <- c(size_mean,mean(sizeDat[sizeDat != 0]))
+          
+        }
+      }
+      tempSpeciesDf <- data.frame("species" = rep(iSpecies,length(speciesPPMR)), "w" = as.numeric(size_name_vec), "rPPMR" = speciesPPMR, "prey_mass" = size_preferred)
+      tempSimDf <- rbind(tempSimDf,tempSpeciesDf) # create a df of species
+    }
+    
+    # plottin the data
+    plot_dat <- filter(tempSimDf)
+    
+    p8 <- ggplot(plot_dat) +
+      geom_line(aes(x = w, y = prey_mass, color = species)) +
+      scale_x_continuous(name = "Predator mass (g)", trans = "log10",limits = xlim) +
+      scale_y_continuous(name = "Mean prey mass (g)", trans = "log10") +
+      scale_colour_manual(values = x@params@linecolour) +
+      theme(panel.background = element_blank(),
+            panel.grid.minor = element_line(color = "gray"),
+            panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+            legend.position = "none", legend.key = element_rect(fill = "white"),
+            text = element_text(size=font_size)
+      ) 
+    
+    
+    # require(grid)
+    # require(gridExtra)
+    # p10 <- arrangeGrob(p1,p2,p3,p4)
+    # grid.draw(p10) # interactive device
+    # ggsave("saving.png", p10) # need to specify what to save explicitly
+    
+    
+    # grid.newpage()
+    # p10 <- plot_grid(grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), ggplotGrob(p3), ggplotGrob(p4))))#, size = "last"))
+    #     
+    # p10 <- plot_grid(p1,p2,p3,p4, p6, p7, mylegend, byrow = F,
+    #                  # rel_heights = c(1,1,1,2),
+    #                  rel_widths = c(3,3), nrow = 4,
+    #                   align = "v", axis = "l")
+    
+    plots_arranged <- plot_grid(p1,p2,p3,p4,p5, p6, p7,p8, byrow = F,
+                                # rel_heights = c(1,1,1,2),
+                                rel_widths = c(3,3), nrow = 4,
+                                align = "v")#, axis = "l")
+    
+    
+    p10 <- plot_grid(plots_arranged, mylegend,
+                     rel_heights = c(10,1),
+                     ncol = 1)
+    
+    # grid.newpage()
+    # grid.draw(p10)
   }
   # p <- grid.arrange(p10,mylegend, nrow=2,heights=c(9.5,0.5))
+  
+  if(save_it & !is.null(name_save)) ggsave(p10, filename = paste(name_save,".png",sep=""), units = "cm", width = 21, height = 29)
+  else if (save_it & is.null(name_save)) ggsave(p10, filename = "tempSummary.png", units = "cm", width = 21, height = 29)
+  
   return(p10)
 }
-
 
 # hopefully all of this will go on sizespectrum/mizer, in the meantime
 
@@ -240,7 +411,7 @@ plotDiet2 <- function (sim, species = NULL, xlim = c(1,NA), returnData = F)
 
 plotFmsy <- function(params, effortRes = 20, returnData = F, speciesData = NULL)
 {
-  # make one gear per species so we can bary the effort per species
+  # make one gear per species so we can vary the effort per species
   gear <- gear_params(params)
   gear$gear <- params@species_params$species
   gear_params(params) <- gear
@@ -483,23 +654,43 @@ getBiomassFrame2 <- function (sim, species = dimnames(sim@n)$sp[!is.na(sim@param
 
 plotCalibration <- function(sim, catch_dat = NULL, stage = 1, wlim = c(.1,NA), power = 1, effortRes = 10)
 {
-  dat = catchAvg$Catch_1419_tonnes
+  # dat = catchAvg$Catch_1419_tonnes
   font_size = 8
   xlim = c(NA,10^log10(max(sim@params@species_params$w_inf)))
   
   switch (stage,
           "1" = {
-            p1 <- plotSpectra(sim, power = power, wlim = wlim)#, ...)
-            p1 <- p1  + scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]") +
-              theme(
-                text = element_text(size=font_size),
-                panel.background = element_blank(),
-                panel.grid.minor = element_line(color = "gray"),
-                legend.position = "right", legend.key = element_rect(fill = "white"))
-            # guides(color = guide_legend(nrow=2))
+            plot_dat <- plotSpectra(sim, power = power, wlim = wlim, return_data = TRUE, total = TRUE)
             
+            p1 <- ggplot(plot_dat[[1]]) +
+              geom_line(aes(x = w, y = value, colour = Species, group = Species)) +
+              scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]")+
+              scale_y_continuous(name = "Biomass density" ,trans = "log10", breaks = log_breaks()) +
+              scale_colour_manual(values = sim@params@linecolour) +
+              scale_linetype_manual(values = sim@params@linetype) +
+              theme(axis.title.x=element_blank(),
+                    axis.text.x=element_blank(),
+                    axis.ticks.x=element_blank(),
+                    text = element_text(size=font_size),
+                    panel.background = element_blank(),
+                    panel.grid.minor = element_line(color = "gray"),
+                    panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+                    legend.position = "right", legend.key = element_rect(fill = "white"))
+
             mylegend<-g_legend(p1) # save the legend
             p1 <- p1 + theme(legend.position = "none") # now remove it from the plot itself
+            
+            # p1 <- plotSpectra(sim, power = power, wlim = wlim)#, ...)
+            # p1 <- p1  + scale_x_continuous(limits = xlim, trans = "log10", name = "Individual size [g]") +
+            #   theme(
+            #     text = element_text(size=font_size),
+            #     panel.background = element_blank(),
+            #     panel.grid.minor = element_line(color = "gray"),
+            #     legend.position = "right", legend.key = element_rect(fill = "white"))
+            # # guides(color = guide_legend(nrow=2))
+            # 
+            # mylegend<-g_legend(p1) # save the legend
+            # p1 <- p1 + theme(legend.position = "none") # now remove it from the plot itself
             
             p2 <- plotBiomass(sim)
             p2 <- p2 + theme(legend.position = "none",
@@ -653,3 +844,75 @@ function (params, n = initialN(params), n_pp = initialNResource(params),
   return(diet)
 }
 
+
+plotFeedingLevel2 <- function (object, species = NULL, time_range, highlight = NULL, 
+          all.sizes = FALSE, include_critical = FALSE, return_data = FALSE, 
+          ...) 
+{
+  if (is(object, "MizerSim")) {
+    if (missing(time_range)) {
+      time_range <- max(as.numeric(dimnames(object@n)$time))
+    }
+    params <- validParams(object@params)
+    feed <- getFeedingLevel(object, time_range = time_range, 
+                            drop = FALSE)
+  }
+  else {
+    params <- validParams(object)
+    feed <- getFeedingLevel(params, drop = FALSE)
+  }
+  if (length(dim(feed)) == 3) {
+    feed <- apply(feed, c(2, 3), mean)
+  }
+  sel_sp <- valid_species_arg(params, species, return.logical = TRUE)
+  species <- dimnames(params@initial_n)$sp[sel_sp]
+  feed <- feed[sel_sp, , drop = FALSE]
+  plot_dat <- data.frame(value = c(feed), Species = factor(dimnames(feed)$sp, 
+                                                           levels = dimnames(feed)$sp), w = rep(params@w, each = length(species)))
+  if (!all.sizes) {
+    for (sp in species) {
+      plot_dat$value[plot_dat$Species == sp & (plot_dat$w < 
+                                                 params@species_params[sp, "w_min"] | plot_dat$w > 
+                                                 params@species_params[sp, "w_inf"])] <- NA
+    }
+    plot_dat <- plot_dat[complete.cases(plot_dat), ]
+  }
+  if (include_critical) {
+    feed_crit <- getCriticalFeedingLevel(params)[sel_sp, 
+                                                 , drop = FALSE]
+    plot_dat_crit <- data.frame(value = c(feed_crit), Species = factor(dimnames(feed)$sp, 
+                                                                       levels = dimnames(feed)$sp), w = rep(params@w, each = length(species)))
+    if (!all.sizes) {
+      for (sp in species) {
+        plot_dat_crit$value[plot_dat_crit$Species == 
+                              sp & (plot_dat_crit$w < params@species_params[sp, 
+                                                                            "w_min"] | plot_dat_crit$w > params@species_params[sp, 
+                                                                                                                               "w_inf"])] <- NA
+      }
+      plot_dat_crit <- plot_dat_crit[complete.cases(plot_dat_crit), 
+                                     ]
+    }
+    p <- ggplot() + geom_line(aes(x = w, y = value, colour = Species, 
+                                  linetype = Species, size = Species, alpha = "actual"), 
+                              data = plot_dat) + geom_line(aes(x = w, y = value, 
+                                                               colour = Species, linetype = Species, alpha = "critical"), 
+                                                           data = plot_dat_crit) + scale_discrete_manual("alpha", 
+                                                                                                         name = "Feeding Level", values = c(actual = 1, critical = 0.5))
+  }
+  else {
+    p <- ggplot() + geom_line(aes(x = w, y = value, colour = Species, 
+                                  linetype = Species, size = Species), data = plot_dat)
+  }
+  linesize <- rep(0.8, length(params@linetype))
+  names(linesize) <- names(params@linetype)
+  linesize[highlight] <- 1.6
+  p <- p + scale_x_continuous(name = "Size [g]", trans = "log10") + 
+    scale_y_continuous(name = "Feeding Level", limits = c(0, 
+                                                          1)) + scale_colour_manual(values = params@linecolour) + 
+    scale_linetype_manual(values = params@linetype) + scale_size_manual(values = linesize)
+  if (return_data & include_critical) 
+    return(list(plot_dat,plot_dat_crit))
+  else if (return_data)
+    return(plot_dat)
+  else return(p)
+}
