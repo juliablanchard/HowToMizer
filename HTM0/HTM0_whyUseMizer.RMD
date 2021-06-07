@@ -1,0 +1,239 @@
+---
+title: Why use Mizer in the first place?
+author: RF
+output: html_document
+---
+
+
+Mizer is a tool that can simulate a dynamic size spectrum in an marine ecosystem, subject to fishing pressure. 
+Multiple fishing gears can be defined and fishing mortality can change through time allowing to explore a range of fishing patterns / exploitation strategies and their effect on the marine ecosystem.
+
+Below are some examples of what one can do with a calibrated Mizer model.
+
+```{r set-up, echo = F,message=F, warning=F}
+source("../utility.R")
+sim <- readRDS("../HTM2/sim_optim3.RDS")
+
+```
+
+### The Nort Sea ecosystem
+
+```{r plotSummary, echo = F, warning=F}
+plotSummary(sim)
+```
+
+
+
+
+### Varying the fisheries effort
+
+The effort directly scales the fishing mortality rate.
+
+```{r gear set-up, echo = F}
+  # make one gear per species so we can vary the effort per species
+  gear <- gear_params(sim@params)
+  gear$gear <- sim@params@species_params$species
+    # prepping species_params to handle double sigmoid and 
+  gear$l50_right <- sim@params@species_params$l50 + 2*(sim@params@species_params$l50 - sim@params@species_params$l25)
+  gear$l25_right <- gear$l50_right + sim@params@species_params$l50 - sim@params@species_params$l25
+  gear$sigmoidal_weight <- .5*sim@params@species_params$w_inf
+  gear$sigmoidal_sigma <- 10
+  gear_params(sim@params) <- gear
+  
+```
+
+
+```{r varying effort, eval = T, echo = F, warning=F}
+
+
+plot_dat <- NULL
+for(iScenario in 1:4)
+{
+  switch(iScenario,
+         "1" = {ieffort = c(1,1,1,1,1,1,1,1,2,2,2,2)
+         scenario_name = "overfishing big"},
+         "2" = {ieffort = c(2,2,2,2,1,1,1,1,1,1,1,1)
+         scenario_name = "overfishing_small"},
+         "3" = {ieffort = c(0,0,0,0,0,0,0,0,1,1,1,1)
+         scenario_name = "big_only"},
+         "4" = {ieffort = c(2,2,2,2,0,0,0,0,1,1,1,1)
+         scenario_name = "medium_safe"},
+         {}
+  )
+  
+  
+  sim <- project(sim@params, effort = ieffort, t_max = 50)
+  fDat <- plotFMort(sim, return_data = T)
+fDat$scenario <- scenario_name
+fDat$type <- "Fishing mortality"
+
+sDat <- plotSpectra(sim, return_data = T)
+sDat <- sDat[[1]]
+sDat$scenario <- scenario_name
+sDat$type <- "Size Spectrum"
+sDat$value <- log10(sDat$value)
+
+plot_dat <- rbind(plot_dat,fDat,sDat)
+  
+}
+
+ggplot(plot_dat) +
+  geom_line(aes(x = w, y = value, color = Species ))+
+  scale_x_continuous(trans = "log10", limits = c(.1,NA), name = "Size") +
+  scale_color_manual(values = sim@params@linecolour) +
+  scale_y_continuous(name = "Biomass density / fishing mortality rate") +
+  facet_grid(type~scenario, scales = "free_y") +
+  theme(strip.background = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.minor = element_line(color = "gray"),
+        panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+        legend.position = "bottom", legend.key = element_rect(fill = "white"))
+
+
+```
+
+
+> Rshiny app for effort (only available on .rmd)
+
+```{r step 2 - shiny Fmsy, eval = F, cache = F, include = F}
+# Optional
+
+# adjust Rmax and/or reproductive efficiency to examine whether improved steady state is achievable that way
+library(shiny) # no need if runtime = shiny is in the YAML
+# runApp("shiny-equilibrium")
+# is there a way to save the final chosen values?
+params_shiny <- sim@params
+effort_vec <- rep(1,length(sim@params@species_params$species))
+shinyApp(
+  ui=fluidPage(
+  
+  # Application title
+  titlePanel("North Sea fisheries"),
+  
+  fluidRow(
+    column(4, wellPanel(
+       # sliderInput("kappa", "log10 Resource Carrying Capacity:", min = 8, max = 12, value = log10(params_optim@resource_params$kappa),
+       #             step = 0.1),
+    #   sliderInput("Rmax", "log10 Maximum Recruitment:", min = 1, max = 12, value = 12,
+    #              step = 0.1),
+       sliderInput("effort", "fisheries effort:", min = 0, max = 5, value = 1, step = 0.1),
+sliderTextInput(
+    inputId = "species",
+    label = "Species name",
+    choices = params_shiny@species_params$species,
+    selected = params_shiny@species_params$species[1],
+    grid = T
+  ),
+#textOutput("selected_var")
+          )),
+    
+    column(6,
+           plotOutput("distPlot", width = 600, height = 600)
+    ))
+     
+  
+    
+  ),
+  
+  server = function(input, output) {
+    
+
+    
+    
+   
+  output$distPlot <- renderPlot({
+    # set up params using values given, need check and change parameter values so units work in days units 
+    
+     effort_vec[which(params_shiny@species_params$species == input$species )] <- input$effort
+    sim_shiny <- project(params_shiny, t_max = 25, effort = effort_vec)
+
+    plot_dat1 <- plotSpectra(sim_shiny, power = 1, wlim = c(.1,NA), return_data = TRUE, total = TRUE)
+  p1 <- ggplot(plot_dat1[[1]]) +
+    geom_line(aes(x = w, y = value, colour = Species, group = Species)) +
+    scale_x_continuous(limits = c(.1,NA), trans = "log10", name = "Individual size [g]")+#, breaks = log_breaks()) +
+    scale_y_continuous(name = "Biomass density" ,trans = "log10", breaks = log_breaks()) +
+    # scale_y_continuous(name = expression(paste("Biomass density (ind.", m^{-3},")", sep="")) ,trans = "log10", breaks = log_breaks()) +
+    scale_colour_manual(values = sim@params@linecolour) +
+    scale_linetype_manual(values = sim@params@linetype) +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          # text = element_text(size=font_size),
+          panel.background = element_blank(),
+          panel.grid.minor = element_line(color = "gray"),
+          panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+          legend.position = "none", legend.key = element_rect(fill = "white"))
+  
+  plot_dat2 <- plotFMort(sim_shiny, return_data = T)
+      p2 <-   ggplot(plot_dat2) +
+      geom_line(aes(x = w, y = value, colour = Species)) +
+      scale_x_continuous(name = "Individual size [g]", trans = "log10", limits = c(.1,NA)) +
+      scale_y_continuous(name = "Fisheries mortality [1/year]", limits = c(.01, max(plot_dat2$value))) +
+      scale_colour_manual(values = sim@params@linecolour) +
+      theme(panel.background = element_blank(),
+            panel.grid.minor = element_line(color = "gray"),
+            panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+            # text = element_text(size=font_size),
+            legend.position = "bottom", legend.key = element_rect(fill = "white")) +
+           guides(color = guide_legend(nrow=2))
+  
+    
+     # plot_grid(p1,p2, mylegend,rel_heights = c(5,5,1), nrow = 3,align = "v")#, axis = "l")
+           plot_grid(p1,p2, nrow=2,align = "v")#, axis = "l")
+
+     })
+  #output$selected_var <- renderText({ as.character(effort_vec)})
+},
+  options = list(height = 500)
+)
+
+# effort_vec is reset everytime
+# need to make as many sliders as species I guess
+# add species slider to display jsut one species at a time
+```
+
+
+### Varying the selectivity function
+
+The selectivity function determines which size class are targeted by the fisheries. Some selectivity function are available in Mizer such as: `knife_edge()`, `sigmoid_length()`, `double_sigmoid_length()` and `sigmoid_weight()`. The user can input its own selectivity function.
+ 
+```{r fishing gear, warning=F, echo = F}
+gear <- gear_params(sim@params)
+plot_dat <- NULL
+gear_vec <-  c("knife_edge", "sigmoid_length", "double_sigmoid_length", "sigmoid_weight")
+for(iGear in gear_vec)
+{
+gear$sel_func <- iGear
+gear_params(sim@params) <- gear
+
+sim <- project(sim@params,t_max = 50,effort = 2)
+
+fDat <- plotFMort(sim, return_data = T)
+fDat$gear <- iGear
+fDat$type <- "Fishing mortality"
+
+sDat <- plotSpectra(sim, return_data = T)
+sDat <- sDat[[1]]
+sDat$gear <- iGear
+sDat$type <- "Size Spectrum"
+sDat$value <- log10(sDat$value)
+
+plot_dat <- rbind(plot_dat,fDat,sDat)
+}
+
+ggplot(plot_dat) +
+  geom_line(aes(x = w, y = value, color = Species ))+
+  scale_x_continuous(trans = "log10", limits = c(.1,NA), name = "Size") +
+  scale_color_manual(values = sim@params@linecolour) +
+  scale_y_continuous(name = "Biomass density / fishing mortality rate") +
+  facet_grid(type~gear, scales = "free_y") +
+  theme(strip.background = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.minor = element_line(color = "gray"),
+        panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+        legend.position = "bottom", legend.key = element_rect(fill = "white"))
+
+
+```
+ 
+ 
