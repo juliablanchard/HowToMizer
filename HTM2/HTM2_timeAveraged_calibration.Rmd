@@ -124,7 +124,7 @@ In this section you will:
 - Check what impact `erepro` has on the $F_{msy}$
 
 
-`erepro` represents the energy conversion efficiency between energy allocated to reproduction and the actual spawn. Lowering `erepro` biologically means higher egg mortality rate or wasteful energy invested into gonads. For example, `erepro` is currently set to $0.01$ meaning, that for every one $g$ of mass allocated to reproduction, $0.01g$ will be used as spawn recruitment, the rest is lost. This coefficient is applied before any density-dependence requirement. Let's use Rshiny to see how varying `erepro` influences the ecosystem (to play around).
+`erepro` represents all the losses that occur between energy allocated to reproduction and the recruitment (expect those due to density dependence). That would be: the energy conversion efficiency between energy allocated to reproduction and eggs, cost of spawning migration and actual spawning (e.g. forgone feeding), and egg mortality. Lowering `erepro` biologically means higher egg mortality rate or wasteful energy invested into gonads. For example, `erepro` is currently set to $0.01$ meaning, that for every one g of mass allocated to reproduction, $0.01$ g will be used as spawn recruitment, the rest is lost. This coefficient is applied before any density-dependence is applied. Let's use Rshiny to see how varying `erepro` influences the ecosystem (to play around).
 
 
 > Rshiny app erepro
@@ -135,7 +135,7 @@ runApp("../shiny_erepro")
 ```
 
 
-A good indicator of realistic `erepro` value is the shape of the fishing mortality rate versus yield curve. Such graph allows to determine the fisheries maximum sustainbale yield when harvesting a species and is supposed to have a bell shape. Too high fishing mortality depletes the stock and reduce the yield whereas too low fishing mortality simply means low yield. The $F_{msy}$ sits in the middle, at the top of the bell. If a species is too reproduction efficient and can replenish its biomass even under high fisheries mortality, its `erepro` is too high. Conversely, if a low fisheries mortality depletes the stock right away, the species' `erepro` is too low.
+A good indicator of realistic `erepro` value is the shape of the fishing mortality rate versus yield curve. Such graph allows to determine the fisheries maximum sustainable yield when harvesting a species and is supposed to have a bell shape. Too high fishing mortality depletes the stock and reduce the yield whereas too low fishing mortality simply means low yield. The $F_{msy}$ sits in the middle, at the top of the bell. If a species is too reproduction efficient and can replenish its biomass even under high fisheries mortality, it can tolerate a high $F_{msy}$, and its `erepro` is too high. Conversely, if a low fisheries mortality depletes the stock right away, the species' `erepro` is too low.
 
 Let's take a look at the current $F_{msy}$ per species. 
 
@@ -209,9 +209,9 @@ ggplot(plot_dat) +
 
 Some trade-offs here, relatively high `erepro` allows Sprat to coexist with the other species but the $F_{msy}$ plot doesn't have the characteristic bell shape. Here Sprat is too efficient and survive even at high fisheries mortality. Note that the curve could start to go down at higher fisheries mortality.
 
-Before spending more tome hand tweaking these species, we are going to run the `R_max` calibration again to see if we improved the yield match (as in step 1).
+Before spending more time hand-tweaking these species, we are going to run the `R_max` calibration again to see if we improved the yield match (as in step 1).
 
-Itering the calibration process multiple times can help find better `R_max` values as the first run of `optimParallel` may not find the best combination of `R_max` in the first go. Below it an example of `optimParallel` being looped five times with 
+Iterating the calibration process multiple times can help find better `R_max` values as the first run of `optimParallel` may not find the best combination of `R_max` in the first go. Below it an example of `optimParallel` being looped five times with 
 
 ```{r step 2 - looping rmax calibration crunch, message = F, eval=F}
 # looping calibration to get more accurate results
@@ -283,7 +283,7 @@ In this section you will:
 plotGrowthCurves2(sim_loop, species_panel = T)
 ```
 
-Most species have a growth curve similar to the expected von Bertalanffy growth curve, apart from Spart and Sandeel which have much slower growth than expected. `kappa`, which is the carrying capacity of the background spectrum will affect the food availability and therefore the growth rate (more food means faster growth). However, changing `kappa` will affect all growth curves. If only a few species are off, we need to change the `gamma` parameter (search volume) per species.
+Most species have a growth curve similar to the expected von Bertalanffy growth curve, apart from Sprat and Sandeel which have much slower growth than expected. `kappa`, which is the carrying capacity of the background spectrum will affect the food availability and therefore the growth rate (more food means faster growth). However, changing `kappa` will affect all growth curves. If only a few species are off, we need to change the `gamma` parameter (search volume) per species.
 
 
 
@@ -291,13 +291,13 @@ Most species have a growth curve similar to the expected von Bertalanffy growth 
 plotFeedingLevel2(sim_loop, include_critical = T)
 ```
 
-The feeding level here shows that the species reaching the highest size classes have a feeding level close to one, meaning that they feed to satiation. Let's look at their diet to check what makes them to full.
+The plot above shows the "feeding level", which is the ratio between consumption and maximum consumption. It therefore cannot exceed 1. The lower straight lines show the "critical feeding level", which is the amount of food needed to keep the fish from starving. The feeding level here shows that the species reaching the highest size classes have a feeding level close to one, meaning that they feed to satiation. Let's look at their diet to check what makes them to full.
 
 ```{r step 3 - diets, warning=F, echo = F}
 plotDiet2(sim_loop)
 ```
 
-The diets look great as the fish feed on each other and do not rely too much on the background spectrum. We can still reduce the carrying capacity of the background spectrum even more, which could lower the feeding level of the species. Let's do this using the Rshiny app
+The diets look great as the fish feed on each other and do not rely too much on the background spectrum. We can note that many species rely heavily on sprat for food, which is probably why sprat struggles to survive in the model. We can reduce the carrying capacity of the background spectrum even more, which could lower the feeding level of the species. Let's do this using the Rshiny app
 
 
 > Rshiny app kappa
