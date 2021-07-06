@@ -4,13 +4,13 @@
 
 if(!require('devtools', quietly = TRUE, warn.conflicts = FALSE)) install.packages("devtools")
 if(!require('mizer', quietly = TRUE, warn.conflicts = FALSE)) devtools::install_github("sizespectrum/mizer")
-# if(!require('mizerExperimental', quietly = TRUE, warn.conflicts = FALSE)) devtools::install_github("sizespectrum/mizerExperimental")
+if(!require('mizerExperimental', quietly = TRUE, warn.conflicts = FALSE)) devtools::install_github("sizespectrum/mizerExperimental")
 if(!require('tidyverse', quietly = TRUE, warn.conflicts = FALSE)) install.packages("tidyverse")
 if(!require('plotly', quietly = TRUE, warn.conflicts = FALSE)) install.packages("plotly")
-if(!require('tictoc', quietly = TRUE, warn.conflicts = FALSE)) install.packages("tictoc")
+# if(!require('tictoc', quietly = TRUE, warn.conflicts = FALSE)) install.packages("tictoc")
 if(!require('shiny', quietly = TRUE, warn.conflicts = FALSE)) install.packages("shiny")
 if(!require('shinyWidgets', quietly = TRUE, warn.conflicts = FALSE)) install.packages("shinyWidgets")
-if(!require('parallel', quietly = TRUE, warn.conflicts = FALSE)) install.packages("parallel")
+# if(!require('parallel', quietly = TRUE, warn.conflicts = FALSE)) install.packages("parallel")
 if(!require('optimParallel', quietly = TRUE, warn.conflicts = FALSE)) install.packages("optimParallel")
 if(!require('ggrepel', quietly = TRUE, warn.conflicts = FALSE)) install.packages("ggrepel")
 if(!require('cowplot', quietly = TRUE, warn.conflicts = FALSE)) install.packages("cowplot")
@@ -242,8 +242,8 @@ plotSummary <- function (x, y, power = 1, wlim = c(.001,NA), short = F, save_it 
     
     # predator / prey mass comparison    
     
-    diet_dat <- getDietComp(sim)
-    SpIdx <- sim@params@species_params$species
+    diet_dat <- getDietComp(x)
+    SpIdx <- x@params@species_params$species
     tempSimDf <- NULL
     
     for(iSpecies in SpIdx) # for each species
@@ -732,9 +732,33 @@ plotCalibration <- function(sim, catch_dat = NULL, stage = 1, wlim = c(.1,NA), p
   return(p)
 }
 
-#' Get an array of predator species x predator mass x prey species x prey mass
+#' Get the diet composition
+#' 
+#' The diet \eqn{D_{ij}(w, w_p)} is the prey biomass density rate for a predator of
+#' species \eqn{i} and weight \eqn{w}, resolved by prey species \eqn{j} and prey
+#' size \eqn{w_p}. It is calculated from the predation kernel \eqn{\phi(w, w_p)},
+#' the search volume \eqn{\gamma_i(w)}, the feeding level \eqn{f_i(w)}, the
+#' species interaction matrix \eqn{\theta_{ij}} and the prey abundance density
+#' \eqn{N_j(w)}:
+#' \deqn{
+#' D_{ij}(w, w_p) = (1-f_i(w)) \gamma_i(w) \theta_{ij} N_j(w_p) 
+#' \phi_i(w, w_p) w_p.
+#' }
+#' The prey index \eqn{j} can run over all species and the resource. The returned 
+#' values have units of 1/year. 
+#'
+#' The total rate \eqn{D_{ij}(w)} at which a predator of species \eqn{i} 
+#' and size \eqn{w} consumes biomass from prey species \eqn{j} is
+#' obtained by integrating over prey sizes:
+#' \deqn{
+#' D_{ij}(w) = \int D_{ij}(w, w_p) dw_p.
+#' }
+#' This aggregated diet can also be obtained directly from the `getDiet()` function.
 #' 
 #' @param sim An object of class \linkS4class{MizerSim}
+#' @return An array (predator species x predator size x 
+#'    (prey species + resource) x prey size)
+
 
 getDietComp<- function(sim)
 {
@@ -760,16 +784,18 @@ getDietComp<- function(sim)
   # Index of predator size classes 
   idx_sp<- object@w_full %in% object@w
   
-  # pred_kernel * interaction matrix
+  
+  
+  #  pred_kernel * interaction matrix
   for(iW in 1:no_w){
-    for(iSpecies in 1:no_sp){    
+    for(iSpecies in 1:no_sp){
       diet_comp[iSpecies,iW,1:no_sp,idx_sp]<- sweep(sweep( b_tot, c(1), object@interaction[iSpecies, 1:no_sp], "*"), c(2),
                                                     pred_kernel[iSpecies,iW,idx_sp], "*")
     }
   }
-  # Search rate *  feeding level * predator biomass
+  # Search rate *  feeding level * prey biomass
   diet_comp[,,1:no_sp,]<- sweep(sweep(sweep(diet_comp[,,1:no_sp,], c(1,2), object@search_vol,"*"),
-                                      c(1,2),feedinglevel,"*"), 
+                                      c(1,2),1-feedinglevel,"*"),
                                 c(1,2),b_tot,"*")  # Prey eaten: total g prey/ year  (given predator biomass density)
   
   # no interaction matrix for background spectrum
@@ -907,12 +933,66 @@ plotFeedingLevel2 <- function (object, species = NULL, time_range, highlight = N
   names(linesize) <- names(params@linetype)
   linesize[highlight] <- 1.6
   p <- p + scale_x_continuous(name = "Size [g]", trans = "log10") + 
-    scale_y_continuous(name = "Feeding Level", limits = c(0, 
-                                                          1)) + scale_colour_manual(values = params@linecolour) + 
-    scale_linetype_manual(values = params@linetype) + scale_size_manual(values = linesize)
+    scale_y_continuous(name = "Feeding Level", limits = c(0, 1)) + 
+    scale_colour_manual(values = params@linecolour) + 
+    scale_linetype_manual(values = params@linetype) + 
+    scale_size_manual(values = linesize) +
+    theme(panel.background = element_blank(),
+          panel.grid.minor = element_line(color = "gray"),
+          panel.border = element_rect(colour = "gray", fill=NA, size=.5),
+          legend.key = element_rect(fill = "white"))
+  
   if (return_data & include_critical) 
     return(list(plot_dat,plot_dat_crit))
   else if (return_data)
     return(plot_dat)
   else return(p)
+}
+
+## the following getError function combines the steps of the optimisastion above - this time with the multispecies model and output the predicted size spectrum
+## update below with project_steady and saving the state from each iteration
+#RF the function takes a bunch of RMax and compare the theoretical catches versus data
+getError <- function(vary,params,dat,env=state,data_type="catch", tol = 0.1,timetorun=10) {
+  
+  #env$params@species_params$R_max[]<-10^vary[1:12]
+  params@species_params$R_max[]<-10^vary[1:12]
+  
+  params <- setParams(params)
+  # run to steady state and update params
+  # env$params<- projectToSteady(env$params, distance_func = distanceSSLogN,
+  #                 tol = tol, t_max = 200,return_sim = F)
+  params<- projectToSteady(params, distance_func = distanceSSLogN,
+                           tol = tol, t_max = 200,return_sim = F)
+  
+  # create sim object 
+  
+  sim <- project(params, effort = 1, t_max = timetorun) #Change t_max to determine how many years the model runs for
+  
+  # 
+  # sim <- project(env$params, effort = 1, t_max = timetorun) #Change t_max to determine how many years the model runs for
+  # 
+  # env$params <-sim@params
+  # 
+  
+  ## what kind of data and output do we have?
+  if (data_type=="SSB") {
+    output <-getSSB(sim)[timetorun,]   #could change to getBiomass if using survey, also check units.
+  }
+  
+  if (data_type=="catch") {
+    output <-getYield(sim)[timetorun,]/1e6 
+    #' using n . w . dw so g per year per volume (i.e. North Sea since kappa is set up this way). 
+    #'The data are in tonnes per year so converting to tonnes.
+  }
+  
+  pred <- log(output)
+  dat  <- log(dat)
+  # sum of squared errors, here on log-scale of predictions and data (could change this or use other error or likelihood options)
+  discrep <- pred - dat
+  discrep <- (sum(discrep^2))
+  
+  # can use a strong penalty on the error to ensure we reach a minimum of 10% of the data (biomass or catch) for each species
+  # if(any(pred < 0.1*dat)) discrep <- discrep + 1e10
+  
+  return(discrep)
 }
