@@ -18,12 +18,7 @@ sim <- readRDS("../HTM2/sim_optim3.RDS")
 
 ### The Nort Sea ecosystem
 
-```{r plotSummary, echo = F, warning=F}
-plotSummary(sim)
-```
-
-
-
+![Figure 3: summary diagnostic](../paper/tempSummaryAnnoted.png)
 
 ### Varying the fisheries effort
 

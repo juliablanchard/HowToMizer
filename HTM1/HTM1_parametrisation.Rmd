@@ -63,7 +63,7 @@ The multispecies model in mizer allows one to resolve species-specific differenc
 
 Let's start with the minimal amount of information needed to run a mizer model.
 
-First you are going to need a data frame of species specfic parameters to input into the `newMultispeciesParams()` function. This function requires at least three columns of parameters:
+First you are going to need a data frame of species specific parameters to input into the `newMultispeciesParams()` function. This function requires at least three columns of parameters:
 
 - species name (`species`)
 - asymptotic weight (`w_inf`)
@@ -74,7 +74,7 @@ First you are going to need a data frame of species specfic parameters to input 
 $$ L_{(t)} = L_\infty (1-e^{-Kt}) $$
 where $t$ is the age. $L_\infty$ represents the asymptotic length and $1/k_vb$ is approximately the age at maturation. Mizer, however, uses two two other parameters, $W_\infty$ and $h$ (`w_inf` in Mizer), where $W_\infty$ represents the asymptotic weight and $h$ the size-scale maximum consumption rate. Fortunately, the two sets of parameters are related, and one can derive $h$ and $W_\infty$ from von Bertalanffy $K$ and $L_\infty$. 
 
->The parameter $h$ represents the maximum consumption rate of a fish, scaled by size. If we assume that stomach fullness (the feeding level) is that same for fish of all sizes, then $h$ is related to the coefficient of the initial growth rate $A$ (blue slanted dashed line) as $h$ approx. $4A$. The value of $h$ varies between $4-400$, with a geometric mean around $22 g^{-0.25}/year$ across all fish species (Andersen 2019, chap. 2 and 11). A more precise estimate can be obtained from von Bertalanffy $K$ and $L_\infty$ as: $h$ approx. $4.75K.L_\infty^{0.75}$ (with $K$ given in $1/years$ and $L_\infty$ in $cm$).
+>The parameter $h$ represents the maximum consumption rate of a fish, scaled by size. If we assume that stomach fullness (the feeding level) is that same for fish of all sizes, then $h$ is related to the coefficient of the initial growth rate $A$ (blue slanted dashed line) as $h \approx 4A$. The value of $h$ varies between 4 -- 400, with a geometric mean around 22 g$^{-0.25}$/year across all fish species (Andersen 2019, chap. 2 and 11). A more precise estimate can be obtained from von Bertalanffy $K$ and $L_\infty$ as: $h \approx 4.75 K\cdot L_\infty^{0.75}$ (with $K$ given in 1/years and $L_\infty$ in cm).
 
 The data frame is arranged as species by parameter, so each column of the parameter data frame is a parameter and each row has the values of the parameters for one of the species in the model.
 
@@ -93,20 +93,20 @@ A search on fishbase reveals some parameters from empirical von Bertalanffy grow
 
 > ### Length-weight regression
 The asymptotic length and weight are related as:
-$$W_\infty = a.L_\infty^b$$
-Species-specific conversion coefficients $a$ and $b$ are found in Froese (2006). Reasonable general values are: $a = 0.01 g/cm^{-3}$ and $b = 3$.
+$$W_\infty = a \cdot L_\infty^b$$
+Species-specific conversion coefficients $a$ and $b$ are found in Froese (2006). Reasonable general values are: $a = 0.01\ \mathrm{g/cm}^{-3}$ and $b = 3$.
 
 
-We find an asymptotic length of 132 cm and k of 0.2 for cod in the North Sea here:https://www.fishbase.se/popdyn/PopGrowthList.php?ID=69&GenusName=Gadus&SpeciesName=morhua&fc=183
+We find an asymptotic length of 132 cm and k_vb of 0.2/year for cod in the North Sea here:https://www.fishbase.se/popdyn/PopGrowthList.php?ID=69&GenusName=Gadus&SpeciesName=morhua&fc=183
 
-And for sandeel, 18.5 cm and k_vb=0.4 
+And for sandeel, 18.5 cm and k_vb =0.4/year 
 https://www.fishbase.se/popdyn/PopGrowthList.php?ID=37&GenusName=Ammodytes&SpeciesName=marinus&fc=402
 
 We then need to convert these asymptotic lengths to weights using length-weight regression parameters, which also can be found on fishbase or in the literature.
 
-For cod the estimation is $w_{inf} = 24600 g$ https://www.fishbase.se/popdyn/LWRelationshipList.php?ID=69&GenusName=Gadus&SpeciesName=morhua&fc=183
+For cod the estimation is $w_{inf} = 24600$ g https://www.fishbase.se/popdyn/LWRelationshipList.php?ID=69&GenusName=Gadus&SpeciesName=morhua&fc=183
 
-For sandeel the estimation is $w_{inf} = 22.83g$ https://www.fishbase.se/popdyn/LWRelationshipList.php?ID=37&GenusName=Ammodytes&SpeciesName=marinus&fc=402
+For sandeel the estimation is $w_{inf} = 22.83$ g https://www.fishbase.se/popdyn/LWRelationshipList.php?ID=37&GenusName=Ammodytes&SpeciesName=marinus&fc=402
 
 
 If `w_inf` or `l_inf` are not available you could use maximum observed sizes. These values are often systematically larger than estimates of asymptotic weight, and we recommend you check the literature or size-at-age data for your system to check reliability of fishbase estimates.
@@ -150,13 +150,13 @@ kable(inter, caption = "North Sea interaction matrix")
 
 
 
-The second type of data you are going to need is a data set of catch and/or spawning stock biomass ($SSB$) of the selected species, so you can compare the model output's to real data. The fisheries time-series of the North Sea are also avaible in this repository. We will use these data later in our second tutorial on calibration.
+The second type of data you are going to need is a data set of catch and/or spawning stock biomass ($SSB$) of the selected species, so you can compare the model output's to real data. The fisheries time-series of the North Sea are also available in this repository. We will use these data later in our second tutorial on calibration.
 
 Because the North Sea is heavily fished we also need information on fishing intensity and other parameters have been entered into the species parameter file that relate to the type of fishing gear selectivity (which is assumed to be species-specific).
 
 In mizer, fishing mortality rates at size for each gear are calculated as
 
-$$F = catchability.selectivity.effort$$
+$$F = catchability\cdot selectivity \cdot effort$$
 
 Selectivity is determined using the `l_25`, `l_50`, and `sel_func` parameters but simpler appraches can also be used. See 
 https://sizespectrum.org/mizer/reference/setFishing.html
@@ -265,7 +265,7 @@ These plots show that species do not coexist and several go extinct. This is bec
 
 ![Figure 2: Illustration of the interplay between the reproductive output and the external density dependence. The model simulates a size spectrum of each species (right). From that spectrum it calculates the reproductive output (blue arrow). The reproductive output is reduced by imposing an external density dependence in the form of a stock recruitment relationship (left panel; orange line). The recruitment then determines the flow of new recruits into the size spectrum. The simulation continues until the size spectrum reaches an equilibrium (which may be a dynamic equilibrium). Changing Rmax up or down by a factor results in a change up or down of the spectrum by the same factor. Rmax therefore functions as the central parameter that adjusts the total biomass of a species.](../paper/Rmax.png)
 
-To get coexistence one needs to guess reasonable $R_{max}$ values which will stop out-competition from a few species. We assume that a the density dependence is going to be posively related to body size, meaning that large individuals will have a stronger density-dependence applied to them (and therefore a lower $R_{max}$ value). Let's start again and set some guessed `R_max` values.
+To get coexistence one needs to guess reasonable $R_{max}$ values which will stop out-competition from a few species. We find that the density dependence is positively related to body size, meaning that large individuals will need to have a stronger density-dependence applied to them (and therefore a lower $R_{max}$ value). Let's start again and set some guessed `R_max` values.
 
 
 ```{r step 3 - guessing coexistence, warning=F, message=F}
@@ -282,7 +282,7 @@ plotCalibration(sim_guessed)
 
 The ecosystem looks way better. Saithe's largest individuals are having a hard time, but at least species coexist.
 
-$R_{max}$ affects the density-dependent reproduction rate ($RDD$) by limiting the maximum amout of spawn calculated from the density-independent reproduction rate ($RDI$). Let's look at the $RDI/RDD$ ratio to see how strong $R_{max}$ acts on our different species.
+$R_{max}$ affects the density-dependent reproduction rate ($RDD$) by limiting the maximum amount of recruits surviving from the density-independent reproduction rate ($RDI$). Let's look at the $RDI/RDD$ ratio to see how strong $R_{max}$ acts on our different species.
 
 
 ```{r step 3 - RDD/RDI}
@@ -306,7 +306,9 @@ ggplot(plot_dat)+
 ```
 
 
-Is the physiological recruitment, $RDI$, much higher than the realised recruitment, $RDD$? High $RDI/RDD$ ratio indicates strong density dependence, meaning that the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. If $RDI/RDD$ is too low, the efficiency of reproduction (`erepro`) can be lowered to ensure species do not outcompete others or are over-resilient to fishing. The largest species that were the most limited by our new $R_{max}$ do not show a strong density dependence. The medium-sized species are the most affected here.
+Is the physiological recruitment, $RDI$, much higher than the realised recruitment, $RDD$? High $RDI/RDD$ ratio indicates strong density dependence, meaning that the carrying capacity is controlling the population rather than predation or competition. Larger species often require more of this density dependent control than smaller ones. 
+#If $RDI/RDD$ is too low, the efficiency of reproduction (`erepro`) can be lowered to ensure species do not out-compete others or are over-resilient to fishing. 
+The largest species that were the most limited by our new $R_{max}$ do not show a strong density dependence. This is because they are anyway hard hit by fishing in this model. The medium-sized species are the most affected here.
 
 
 ## Step 4 - Checking assumptions
